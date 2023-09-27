@@ -30,7 +30,7 @@ print("Connected to Arduino port:" + arduino_port)
 
 
 #this here creates up a csv file and writes it's fieldnames. cool.
-with open('C:/Users/user/Downloads/sondehub_jupyter/data.csv', 'w') as csv_file:
+with open('C:/Users/mgrin/Documents/GitHub/Dev-BS-Rockoon/sondehubUploadAndExcelCreation/data.csv', 'w') as csv_file:
     csv_writer = csv.DictWriter(csv_file,fieldnames=fieldnames, delimiter=",")
     csv_writer.writeheader()
     print("Created file")
@@ -67,7 +67,7 @@ time.sleep(t)
 while True:
 
     #opens file in append mode and sets parameters for the writer
-    with open('C:/Users/user/Downloads/sondehub_jupyter/data.csv', 'a') as csv_file:
+    with open('C:/Users/mgrin/Documents/GitHub/Dev-BS-Rockoon/sondehubUploadAndExcelCreation/data.csv', 'a') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter=",")
         #tells which data goes to which colummn
         getData=ser.readline()
@@ -80,7 +80,7 @@ while True:
 
 #delay between updates. currently set to one second so as not to spam the serial(hurts to look at)
 
-    data = pd.read_csv('c:/Users/user/Downloads/sondehub_jupyter/data.csv')
+    data = pd.read_csv('C:/Users/mgrin/Documents/GitHub/Dev-BS-Rockoon/sondehubUploadAndExcelCreation/data.csv')
     last_value = data.iloc[-1] 
     uploader.add_telemetry(
         "VIP-ROCKOON", # Your payload callsign
