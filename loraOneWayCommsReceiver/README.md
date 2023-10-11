@@ -1,6 +1,13 @@
-This is a code containing LoRa communications code, for the receiver end of things
-it is currently unfinished - should move LoRa functions to a different file contained /include, and overall clean the code up
-Additional things to be added/defined - all the LoRa variables, and encryption, and also different error messages
+This is a code for a one way LoRa receiver. 
+At it's current stage it does the following:
+    Receives LoRa communications on the default frequency (434), bandwith, etc
+    Prints received packets into serial.
+What to know before running it:
+    Pins are set for a Heltec WiFi LoRa v3, change if running on anything else.
+To-do:
+    Add comments;
+    move LoRa function to a header file, or whatever the things in /include are called;
+
 
 something to read later, might be a useful rehash
 https://forum.arduino.cc/t/what-is-lora/595381

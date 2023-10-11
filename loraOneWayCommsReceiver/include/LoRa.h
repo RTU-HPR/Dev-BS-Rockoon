@@ -5,12 +5,12 @@
 #define loraSCK 9
 #define loraSS 8
 #define loraRST 12
-#define loraDIO0 2
+#define loraBUSY 13 
 #define loraDIO1 14
 #define loraMISO 11
 #define loraMOSI 10
 
-SX1262 radio = new Module(loraSS, loraDIO0, loraRST, loraDIO1);
+SX1262 radio = new Module(loraSS, loraDIO1, loraRST, loraBUSY);
 namespace lora
 {
     void setup(){   

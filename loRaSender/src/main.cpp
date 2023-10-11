@@ -3,33 +3,65 @@
 #include <SPI.h>
 #include <iostream>
 #include <LoRa.h>
+#include <EEPROM.h>
+#include <RadioLib.h>
 #include "LoRa.cpp"
 //SX1272 radios = new Module(loraSS, loraDIO0, loraRST, loraDIO1);
-#define SS 18
-#define RST 14
-#define DI0 26
-#define SCK 5
-#define MISO 19
-#define MOSI 27
+#define LoRa_MOSI 10
+#define LoRa_MISO 11
+#define LoRa_SCK 9
+
+#define LoRa_nss 8
+#define LoRa_dio1 14
+#define LoRa_nrst 12
+#define LoRa_busy 13
 String outgoing = "string";
+SX1262 radio = new Module(LoRa_nss, LoRa_dio1, LoRa_nrst, LoRa_busy);
 void setup(){
   //lora::setup;
   Serial.begin(115200);
-  SPI.begin(SCK, MISO, MOSI, SS);
-  LoRa.setPins(SS, RST, DI0);
-  //radios.begin(434, 125, 9, 7, 0x34, 10);
-  Serial.println("Initalising LoRa");
-  if(!LoRa.begin(433E6)){
-    Serial.println("Starting LoRa failed");
-  }else {
-    Serial.println("Success");
+  SPI.begin(LoRa_SCK, LoRa_MISO, LoRa_MOSI, LoRa_nss);
+
+  // initialize SX1262 with default settings
+  Serial.print(F("[SX1262] Initializing ... "));
+  int state = radio.begin();
+  if (state == RADIOLIB_ERR_NONE)
+  {
+    Serial.println(F("success!"));
+  }
+  else
+  {
+    Serial.print(F("failed, code "));
+    Serial.println(state);
+    while (true);
   }
 }
 void transmitter (String outgoing){
-  LoRa.beginPacket();
-  LoRa.print(outgoing);
-  LoRa.endPacket();
-  Serial.println("Package sent: " + outgoing);
+Serial.print(F("[SX1262] Transmitting packet ... "));
+
+  int state = radio.transmit(outgoing);
+
+  if (state == RADIOLIB_ERR_NONE)
+  {
+    // the packet was successfully transmitted
+    Serial.println(F("success!"));
+  }
+  else if (state == RADIOLIB_ERR_PACKET_TOO_LONG)
+  {
+    // the supplied packet was longer than 256 bytes
+    Serial.println(F("too long!"));
+  }
+  else if (state == RADIOLIB_ERR_TX_TIMEOUT)
+  {
+    // timeout occured while transmitting packet
+    Serial.println(F("timeout!"));
+  }
+  else
+  {
+    // some other error occurred
+    Serial.print(F("failed, code "));
+    Serial.println(state);
+  }
 }
 double longtitude = 56.946285;
 double latitude = 24.105078;
