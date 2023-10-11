@@ -29,5 +29,8 @@ double calculateAzimuth(double rocketLatitude, double rocketLongitude, double an
   double y = sin(diffLon)*cos(rocketLatitude*PI/180);
   double x = cos(antennaLatitude*PI/180)*sin(rocketLatitude*PI/180) - sin(antennaLatitude*PI/180)*cos(rocketLatitude*PI/180)*cos(diffLon);
   double bearing = atan2(y,x)*(180/PI);
+  if (bearing<0) {
+    bearing+=360;
+  }
   return bearing;
 }
