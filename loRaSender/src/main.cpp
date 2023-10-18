@@ -62,8 +62,8 @@ Serial.print(F("[SX1262] Transmitting packet ... "));
     Serial.println(state);
   }
 }
-double longtitude = 56.946285;
-double latitude = 24.105078;
+double longtitude = 56.9527230;
+double latitude = 24.0809493;
 int altitude = 100;
 // void send(String message){
 //         Serial.println("Transmitting:");
@@ -80,6 +80,7 @@ int altitude = 100;
 void loop() {
   
   String data = String(longtitude) + "," + String(latitude) + "," + String(altitude);
+  Serial.println(data);
   //lora::send(data);
   //send(data);
   transmitter(data);

@@ -51,7 +51,7 @@ void setup() {
     Serial.println("Failed to add peer");
     return;
   }  
-  //myData.AZIM = 0;
+  myData.AZIM = 100;
   myData.ELEV = 0;
 }
  
@@ -69,5 +69,4 @@ void loop() {
     Serial.println("Error sending the data");
   }
   delay(10000); 
-  myData.ELEV= myData.ELEV +5;
 }

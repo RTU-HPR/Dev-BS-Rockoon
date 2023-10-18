@@ -39,5 +39,5 @@ int calculateAzimuth(double rocketLatitude, double rocketLongitude, double anten
   if (rounded<0) {
     rounded+=360;
   }
-  return rounded;
+  return 360-rounded;
 }
