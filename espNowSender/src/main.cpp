@@ -9,9 +9,8 @@ uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 // Structure example to send data
 // Must match the receiver structure
 typedef struct struct_message {
-    double lon;
-    double lat;
-    double alt;
+    int ELEV;
+    int AZIM;
 } struct_message;
 
 // Create a struct_message called myData
@@ -51,15 +50,15 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
     return;
-  }
+  }  
+  myData.AZIM = 100;
+  myData.ELEV = 0;
 }
  
 void loop() {
   // Set values to send
-  myData.lon = 56.95;
-  myData.lat = 24.11;
-  myData.alt = 100;
-  
+
+
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
    
@@ -69,5 +68,5 @@ void loop() {
   else {
     Serial.println("Error sending the data");
   }
-  delay(100);
+  delay(10000); 
 }

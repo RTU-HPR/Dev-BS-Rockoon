@@ -10,7 +10,6 @@
 #define LoRa_MOSI 10
 #define LoRa_MISO 11
 #define LoRa_SCK 9
-
 #define LoRa_nss 8
 #define LoRa_dio1 14
 #define LoRa_nrst 12
@@ -63,8 +62,8 @@ Serial.print(F("[SX1262] Transmitting packet ... "));
     Serial.println(state);
   }
 }
-double longtitude = 56.946285;
-double latitude = 24.105078;
+double longtitude = 56.9527230;
+double latitude = 24.0809493;
 int altitude = 100;
 // void send(String message){
 //         Serial.println("Transmitting:");
@@ -80,7 +79,8 @@ int altitude = 100;
 //rewrite using sandeep mistry's lib
 void loop() {
   
-  String data = String(latitude) + "," + String(longtitude) + "," + String(altitude);
+  String data = String(longtitude) + "," + String(latitude) + "," + String(altitude);
+  Serial.println(data);
   //lora::send(data);
   //send(data);
   transmitter(data);

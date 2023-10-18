@@ -3,16 +3,15 @@
 #include <Arduino.h>
 
 typedef struct struct_message {
-    double lon;
-    double lat;
-    double alt;
+    int elev;
+    int azim;
 } struct_message;
 
 struct_message myData;
 
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
-  String data = String(myData.lat) + "," + String(myData.lon) + "," + String(myData.alt);
+  String data = String (myData.azim) + " " + String(myData.elev);
  Serial.println(data);
 }
  
