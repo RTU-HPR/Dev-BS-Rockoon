@@ -376,14 +376,23 @@ void stepper_move(long stepAz, long stepEl)
 }
 
 
+typedef struct struct_message {
+    int ELEV;
+    int AZIM;
+} struct_message;
+
+struct_message myData;
+
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+  memcpy(&myData, incomingData, sizeof(myData));
+  //String data = String(myData.AZIM) + " " + String(myData.ELEV);
+ //Serial.println(data);
+ 
+}
 
 
 void setup()
 {  
-
-  AZstepper.setPinsInverted(true, true, true);
-  ELstepper.setPinsInverted(true, true, true);
-  pinMode(27, OUTPUT);
   /*Change these to suit your stepper if you want*/
   AZstepper.setMaxSpeed(MAX_SPEED);
   AZstepper.setAcceleration(MAX_ACCELERATION);
@@ -414,7 +423,16 @@ void setup()
     AZstepper.setCurrentPosition(0);
     ELstepper.setCurrentPosition(0); 
   }
+   WiFi.mode(WIFI_STA);
+  if (esp_now_init() != ESP_OK) {
+  Serial.println("Error initializing ESP-NOW");
+  return;
+  }else{
+    Serial.println("Initialised ESP now");
+  }
+ esp_now_register_recv_cb(OnDataRecv);
 }
+
 void loop()
 { int sk = 0;
   String a = "";
