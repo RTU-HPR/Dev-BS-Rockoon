@@ -35,7 +35,6 @@ int calculateAzimuth(double rocketLatitude, double rocketLongitude, double anten
   double outputBearing = atan2(y,x);
   double outputBearingDegrees = outputBearing*180/PI;
   int rounded = round(outputBearingDegrees/precision)*precision;
-  return rounded; 
   if (rounded<0) {
     rounded+=360;
   }
