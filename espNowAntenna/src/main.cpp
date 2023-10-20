@@ -13,16 +13,15 @@
 #define EN 19 /*PIN for Enable or Disable Stepper Motors*/ //19
 #define EN2 32 /*PIN for Enable or Disable Stepper Motors*/ //32
 #define Microstepping 5
-#define STEPPERS_ENABLE() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_DISABLE() digitalWrite(EN, LOW)
 
-#define STEPPERS_ENABLE2() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE2() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE2() digitalWrite(EN2, HIGH)
+#define STEPPERS_DISABLE2() digitalWrite(EN2, LOW)
 
-#define SPR 800 /*Step Per Revolution driver 200*/
+#define SPR 1600 /*Step Per Revolution driver 200*/
 #define RATIO 30 /*54 Gear ratio*/
 #define T_DELAY 60000 /*Time to disable the motors in millisecond*/
-
 #define HOME_AZ 0 /*Homing switch for Azimuth*/
 #define HOME_EL 0 /*Homing switch for Elevation*/
 
@@ -31,6 +30,7 @@
 
 #define MAX_SPEED 800 //300, 800
 #define MAX_ACCELERATION 600 //100, 600
+
 
 uint8_t homingEnabled = 0;
 
@@ -374,24 +374,16 @@ void stepper_move(long stepAz, long stepEl)
   AZstepper.run();
   ELstepper.run();
 }
-typedef struct struct_message {
-    int ELEV;
-    int AZIM;
-} struct_message;
 
-struct_message myData;
-
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  memcpy(&myData, incomingData, sizeof(myData));
-  //String data = String(myData.AZIM) + " " + String(myData.ELEV);
- //Serial.println(data);
- 
-}
 
 
 
 void setup()
 {  
+
+  AZstepper.setPinsInverted(true, true, true);
+  ELstepper.setPinsInverted(true, true, true);
+  pinMode(27, OUTPUT);
   /*Change these to suit your stepper if you want*/
   AZstepper.setMaxSpeed(MAX_SPEED);
   AZstepper.setAcceleration(MAX_ACCELERATION);
@@ -422,16 +414,7 @@ void setup()
     AZstepper.setCurrentPosition(0);
     ELstepper.setCurrentPosition(0); 
   }
-   WiFi.mode(WIFI_STA);
-  if (esp_now_init() != ESP_OK) {
-  Serial.println("Error initializing ESP-NOW");
-  return;
-  }else{
-    Serial.println("Initialised ESP now");
-  }
- esp_now_register_recv_cb(OnDataRecv);
 }
-
 void loop()
 { int sk = 0;
   String a = "";
