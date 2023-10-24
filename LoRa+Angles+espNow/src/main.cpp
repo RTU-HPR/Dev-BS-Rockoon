@@ -18,13 +18,13 @@
 #define LoRa_busy 13
 
 // REPLACE WITH YOUR RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t broadcastAddress[] = {212, 212, 218, 229, 111, 164};
 
 // Structure example to send data
 // Must match the receiver structure
 typedef struct struct_message {
-    int elev;
-    int azim;
+    int ELEV;
+    int AZIM;
 } struct_message;
 
 // Create a struct_message called myData
@@ -105,30 +105,36 @@ void getLocation(String data){
   rocketLongitude = data.substring(0, data.indexOf(delimiter)).toDouble();
   rocketAltitude = data.substring(data.indexOf(delimiter)+1).toDouble();
 }
-
+bool recv;
 void receive(){
+  
   String received;
    int state = radio.receive(received);
    if(state == RADIOLIB_ERR_NONE){
      getLocation(received);
      RSSI = radio.getRSSI();
+     recv = true;
    }else{
      Serial.println(state);
+     recv = false;
    }
 }
 
 void loop() {
-
   receive();
+  int sk = 0;
+  String a = "";
+  String b = "";
+  if(recv == true){
   int elevation = calculateElevAngle(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rocketAltitude, rotationPrecision);  //Radiānos
   int azimuth = calculateAzimuth(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rotationPrecision);
   Serial.println("elevation: " + String(elevation) + " azimuth:" + String(azimuth) + " RSSI:" + String(RSSI));
   
-  if (i==10){
-    i = 0;
+  //if (i==10){
+   // i = 0;
       // Set values to send
-    myData.elev = elevation;
-    myData.azim = azimuth;
+    myData.ELEV = elevation;
+    myData.AZIM = azimuth;
     
     // Send message via ESP-NOW
     esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
@@ -139,8 +145,24 @@ void loop() {
     else {
       Serial.println("Error sending the data");
     }
+  } else if(Serial.available()>0){
+    a = Serial.readString();
+    b=a;
+    sk = a.indexOf(',');
+    String az = a.substring(0,sk);
+    String el = b.substring(sk+1, b.length());
+    myData.AZIM =  az.toInt();
+    myData.ELEV= el.toInt();
+    //Serial.println(myData.AZIM + ", " + myData.ELEV);
+    Serial.println();
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+    if (result == ESP_OK) {
+    Serial.println("Sent with success - " + String(myData.AZIM) + "," + String(myData.ELEV));
+    delay(4000); 
   }
-  i++;
+ // }
+  //i++;
 
   delay(1000);
+}
 }
