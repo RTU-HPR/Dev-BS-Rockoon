@@ -84,6 +84,6 @@ void loop() {
   //lora::send(data);
   //send(data);
   transmitter(data);
-  altitude = altitude +1;
+  altitude = altitude +100;
   delay(1000);
   }
