@@ -11,16 +11,15 @@
 #define EN 19 /*PIN for Enable or Disable Stepper Motors*/ //19
 #define EN2 32 /*PIN for Enable or Disable Stepper Motors*/ //32
 #define Microstepping 5
-#define STEPPERS_ENABLE() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_DISABLE() digitalWrite(EN, LOW)
 
-#define STEPPERS_ENABLE2() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE2() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE2() digitalWrite(EN2, HIGH)
+#define STEPPERS_DISABLE2() digitalWrite(EN2, LOW)
 
-#define SPR 800 /*Step Per Revolution driver 200*/
+#define SPR 1600 /*Step Per Revolution driver 200*/
 #define RATIO 30 /*54 Gear ratio*/
 #define T_DELAY 60000 /*Time to disable the motors in millisecond*/
-
 #define HOME_AZ 0 /*Homing switch for Azimuth*/
 #define HOME_EL 0 /*Homing switch for Elevation*/
 
@@ -29,6 +28,7 @@
 
 #define MAX_SPEED 800 //300, 800
 #define MAX_ACCELERATION 600 //100, 600
+
 
 uint8_t homingEnabled = 0;
 
@@ -378,6 +378,10 @@ void stepper_move(long stepAz, long stepEl)
 
 void setup()
 {  
+
+  AZstepper.setPinsInverted(true, true, true);
+  ELstepper.setPinsInverted(true, true, true);
+  pinMode(27, OUTPUT);
   /*Change these to suit your stepper if you want*/
   AZstepper.setMaxSpeed(MAX_SPEED);
   AZstepper.setAcceleration(MAX_ACCELERATION);
@@ -410,48 +414,64 @@ void setup()
   }
 }
 
-void loop()
-{ int sk = 0;
-  String a = "";
-  String b = "";
-  /*Define the steps*/
-  static long AZstep = 0;
-  static long ELstep = 0;
-  /*Time Check*/
-  if (t_DIS == 0)
-    t_DIS = millis();
+void loop(){
+   int sk = 0;
+   String a = "";
+   String b = "";
+   /*Define the steps*/
+   static long AZstep = 0;
+   static long ELstep = 0;
+   static long AZold = 0;
+   static long ELold = 0;
+   /*Time Check*/
+   if (t_DIS == 0)
+     t_DIS = millis();
 
-  /*Disable Motors*/
-  if (AZstep == AZstepper.currentPosition() && ELstep == ELstepper.currentPosition() && millis()-t_DIS > T_DELAY){
-    STEPPERS_DISABLE(); 
-    STEPPERS_DISABLE2();
+   /*Disable Motors*/
+   if (AZstep == AZstepper.currentPosition() && ELstep == ELstepper.currentPosition() && millis()-t_DIS > T_DELAY){
+     STEPPERS_DISABLE(); 
+     STEPPERS_DISABLE2();
     
-  }else{
-  /*Enable Motors*/
-    STEPPERS_ENABLE(); 
-    STEPPERS_ENABLE2();
-  }
+   }else{
+   /*Enable Motors*/
+     STEPPERS_ENABLE(); 
+     STEPPERS_ENABLE2();
+   }
 
-  if (Serial.available() > 0){
-    a = Serial.readString();
-    b=a;
-    sk = a.indexOf(',');
-    String az = a.substring(0,sk);
-    String el = b.substring(sk+1, b.length());
-    ELstep =  az.toInt();
-    AZstep= el.toInt();
-    Serial.print("AZ=");
-    Serial.print(AZstep);
-    Serial.print("  EL=");
-    Serial.print(ELstep); 
-    Serial.println();
-    AZstep =  AZstep*(SPR*RATIO/360);
-    ELstep = ELstep*(SPR*RATIO/360);
+   if (Serial.available() > 0){
+     a = Serial.readString();
+     b=a;
+     sk = a.indexOf(',');
+     String az = a.substring(0,sk);
+     String el = b.substring(sk+1, b.length());
+     ELstep =  az.toInt();
+     AZstep= el.toInt();
+     Serial.print("AZ=");
+     Serial.print(AZstep);
+     Serial.print("  EL=");
+     Serial.print(ELstep); 
+     Serial.println();
+     AZstep =  AZstep*(SPR*RATIO/360);
+     ELstep = ELstep*(SPR*RATIO/360);
+     digitalWrite(27, HIGH);
   }
 
   /*Read the steps from serial*/
-  //cmd_proc(AZstep, ELstep);
+ // cmd_proc(AZstep, ELstep);
   /*Move the Azimuth & Elevation Motor*/
-
+  // if(AZold == AZstep){
+  //   stepper_move(0, ELstep);
+  //   ELold = ELstep;
+  // }else if (ELold == ELstep){
+  //   stepper_move(AZstep, 0);
+  //   AZold = AZstep;
+  // }else{
+  //   stepper_move(AZstep, ELstep);
+  //   AZold = AZstep;
+  //   ELold = ELstep;
+  // }
   stepper_move(AZstep, ELstep);
+  
+  
+  
 }

@@ -4,8 +4,8 @@
 #include <WiFi.h>
 
 // REPLACE WITH YOUR RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
+uint8_t broadcastAddress[] = {212, 212, 218, 229, 111, 164};
+//D4:D4:DA:E5:6F:A4
 // Structure example to send data
 // Must match the receiver structure
 typedef struct struct_message {
@@ -35,6 +35,8 @@ void setup() {
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
+  } else{
+    Serial.println( "ESP NOW Initialised");
   }
 
   // Once ESPNow is successfully Init, we will register for Send CB to
@@ -51,22 +53,35 @@ void setup() {
     Serial.println("Failed to add peer");
     return;
   }  
-  myData.AZIM = 100;
-  myData.ELEV = 0;
 }
  
 void loop() {
   // Set values to send
-
-
+ int sk = 0;
+  String a = "";
+  String b = "";
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  
    
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
+  
+  if(Serial.available()>0){
+  a = Serial.readString();
+  b=a;
+    sk = a.indexOf(',');
+    String az = a.substring(0,sk);
+    String el = b.substring(sk+1, b.length());
+    myData.AZIM =  az.toInt();
+    myData.ELEV= el.toInt();
+    //Serial.println(myData.AZIM + ", " + myData.ELEV);
+    Serial.println();
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+    if (result == ESP_OK) {
+    Serial.println("Sent with success - " + String(myData.AZIM) + "," + String(myData.ELEV));
+    delay(5000); 
   }
   else {
     Serial.println("Error sending the data");
   }
-  delay(10000); 
+  }
+  
 }

@@ -13,16 +13,15 @@
 #define EN 19 /*PIN for Enable or Disable Stepper Motors*/ //19
 #define EN2 32 /*PIN for Enable or Disable Stepper Motors*/ //32
 #define Microstepping 5
-#define STEPPERS_ENABLE() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
+#define STEPPERS_DISABLE() digitalWrite(EN, LOW)
 
-#define STEPPERS_ENABLE2() digitalWrite(EN, LOW)
-#define STEPPERS_DISABLE2() digitalWrite(EN, HIGH)
+#define STEPPERS_ENABLE2() digitalWrite(EN2, HIGH)
+#define STEPPERS_DISABLE2() digitalWrite(EN2, LOW)
 
-#define SPR 800 /*Step Per Revolution driver 200*/
+#define SPR 1600 /*Step Per Revolution driver 200*/
 #define RATIO 30 /*54 Gear ratio*/
 #define T_DELAY 60000 /*Time to disable the motors in millisecond*/
-
 #define HOME_AZ 0 /*Homing switch for Azimuth*/
 #define HOME_EL 0 /*Homing switch for Elevation*/
 
@@ -31,6 +30,7 @@
 
 #define MAX_SPEED 800 //300, 800
 #define MAX_ACCELERATION 600 //100, 600
+
 
 uint8_t homingEnabled = 0;
 
@@ -366,28 +366,31 @@ void cmd_proc(long &stepAz, long &stepEl)
 
 
 /*Send pulses to stepper motor drivers*/
-void stepper_move(long stepAz, long stepEl)
+void AZ_stepper_move(long stepAz)
 {
   AZstepper.moveTo(stepAz);
-  ELstepper.moveTo(stepEl);
-    
   AZstepper.run();
+  
+}
+void EL_stepper_move(long stepEl)
+{
+  ELstepper.moveTo(stepEl);
   ELstepper.run();
 }
+
 typedef struct struct_message {
     int ELEV;
     int AZIM;
 } struct_message;
 
 struct_message myData;
-
+int recv = 1;
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
   //String data = String(myData.AZIM) + " " + String(myData.ELEV);
- //Serial.println(data);
- 
+  //Serial.println(data);
+  recv = recv + 1;
 }
-
 
 
 void setup()
@@ -453,6 +456,24 @@ void loop()
     STEPPERS_ENABLE(); 
     STEPPERS_ENABLE2();
   }
+  if(esp_now_register_recv_cb(OnDataRecv) == ESP_OK){
+    int az = myData.AZIM;
+    int el = myData.ELEV;
+    ELstep =  az;
+    AZstep= el;
+
+    AZstep =  el*(SPR*RATIO/360);
+    ELstep = az*(SPR*RATIO/360);
+    if(recv>1){
+    Serial.print("AZ=");
+    Serial.print(AZstep);
+    Serial.print("  EL=");
+    Serial.print(ELstep);
+    recv = 1;
+    }
+    AZ_stepper_move(AZstep);
+    EL_stepper_move(ELstep); 
+  }
   
   if (Serial.available()>0){
     
@@ -469,13 +490,13 @@ void loop()
     sk = a.indexOf(',');
     //String az = String(myData.AZIM);//a.substring(0,sk);
     //String el = String(myData.ELEV);//b.substring(sk+1, b.length());
-    int az = myData.ELEV;
-    int el = myData.ELEV;
-    ELstep =  az;
-    AZstep= el;
+    // int az = myData.ELEV;
+    // int el = myData.ELEV;
+    // ELstep =  az;
+    // AZstep= el;
 
-    AZstep =  el*(SPR*RATIO/360);
-    ELstep = az*(SPR*RATIO/360);    
+    // AZstep =  el*(SPR*RATIO/360);
+    // ELstep = az*(SPR*RATIO/360);    
     //Serial.print("AZ=");
     //Serial.println(AZstep);
     //Serial.print("  EL=");
@@ -504,14 +525,13 @@ void loop()
     Serial.print(AZstep);
     Serial.print("  EL=");
     Serial.print(ELstep);
-    stepper_move(AZstep, ELstep);  
+    //stepper_move(AZstep, ELstep);  
   }
 
   /*Read the steps from serial*/
   //cmd_proc(AZstep, ELstep);
   /*Move the Azimuth & Elevation Motor*/
 
-  stepper_move(AZstep, ELstep); 
-
+  //stepper_move(AZstep, ELstep); 
 
 }
