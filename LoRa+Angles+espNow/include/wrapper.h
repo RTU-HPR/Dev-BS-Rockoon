@@ -10,4 +10,4 @@
 #define LoRa_busy 13
 
 // REPLACE WITH YOUR RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t broadcastAddress[] = {212, 212, 218, 229, 111, 164};

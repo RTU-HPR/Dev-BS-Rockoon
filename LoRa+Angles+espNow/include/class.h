@@ -15,8 +15,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 typedef struct struct_message {
-    int elev;
-    int azim;
+    int ELEV;
+    int AZIM;
 } struct_message;
 
 class rotatorAngles {
@@ -30,6 +30,7 @@ class rotatorAngles {
         esp_now_peer_info_t peerInfo;
         // Create a struct_message called myData
         struct_message myData;
+        bool recv;
 
         //Antenna location, ierakstīt reālo
         double antennaLongitude = 24.15;
@@ -81,18 +82,18 @@ class rotatorAngles {
             //setRocketInitLoc();
         }
         void loop(SX1262 radio) {
-            receiveLocation(radio, true);
-            // if (checkNewLocation()) { //TODO, sakārtot kļūdu apstrādi, lai nevar iestrēgt.
-            //     updateLocation();
-            // }
-            updateLocation();
-            int elevation = calculateElevAngle(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rocketAltitude, rotationPrecision);  //Radiānos
-            int azimuth = calculateAzimuth(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rotationPrecision);
-            
-            debugPrintAngles(elevation, azimuth);
-            backup(elevation, azimuth);
-            send(broadcastAddress, elevation, azimuth);
-
+            if (receiveLocation(radio, true) && checkNewLocation()) { //Strādā, jo abi darbojās un izmaina klases mainīgos un returno tikai vai viss ok, nevis vērtības
+                updateLocation();
+                int elevation = calculateElevAngle(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rocketAltitude, rotationPrecision);  //Radiānos
+                int azimuth = calculateAzimuth(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude, rotationPrecision);
+                
+                printAngles(elevation, azimuth);
+                backup(elevation, azimuth);
+                send(broadcastAddress, elevation, azimuth);
+            } 
+            else if(Serial.available()>0){
+                manualSend();
+            }
             delay(1000);
         }
 
@@ -137,15 +138,17 @@ class rotatorAngles {
                 while (true);
             }
         }
-        void receiveLocation(SX1262 radio, bool debug = false){
+        bool receiveLocation(SX1262 radio, bool debug = false){
             String received;
                 int state = radio.receive(received);
                 if(state == RADIOLIB_ERR_NONE){
                 //TODO saglabāt tīros datus (received) SD vai tml., iespējams vajag piefiksēt arī kļūdas (state)
                 parseLocation(received, debug);
                 RSSI = radio.getRSSI();
+                return true;
             }else{
                 Serial.println(state);
+                return false;
             }
         }
         void parseLocation(String data, bool debug){
@@ -161,6 +164,7 @@ class rotatorAngles {
 
         }
         bool checkNewLocation() {
+            return true; //jo šī daļa nav pabeigta, vajag failsafe, ja pirmais nebija pareizs
             // Ja dati ir inherently nepareizi, piem, negatīvas koordinātes
             if (rocketLatitudeNew < 0 || rocketLatitudeNew > 180) {return false;}
             if (rocketLongitudeNew < 0 || rocketLongitudeNew > 360) {return false;}
@@ -180,7 +184,7 @@ class rotatorAngles {
             rocketLongitude = rocketLongitudeNew;
             rocketAltitude = rocketAltitudeNew;
         }
-        void debugPrintAngles(int elevation, int azimuth){
+        void printAngles(int elevation, int azimuth){
             Serial.println("elevation: " + String(elevation) + " azimuth:" + String(azimuth) + " RSSI:" + String(RSSI));
         }
         void backup(int elevation, int azimuth){
@@ -194,8 +198,8 @@ class rotatorAngles {
         }
         void send(uint8_t broadcastAddress[], int elevation, int azimuth) { 
             // Set values to send
-            myData.elev = elevation;
-            myData.azim = azimuth;
+            myData.ELEV = elevation;
+            myData.AZIM = azimuth;
 
             // Send message via ESP-NOW
             esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
@@ -206,5 +210,21 @@ class rotatorAngles {
             else {
                 Serial.println("Error sending the data");
             }
+        }
+        void manualSend(){
+                String a = Serial.readString();
+                String b=a;
+                int sk = a.indexOf(',');
+                String az = a.substring(0,sk);
+                String el = b.substring(sk+1, b.length());
+                myData.AZIM =  az.toInt();
+                myData.ELEV= el.toInt();
+                //Serial.println(myData.AZIM + ", " + myData.ELEV);
+                Serial.println();
+                esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+                if (result == ESP_OK) {
+                    Serial.println("Sent with success - " + String(myData.AZIM) + "," + String(myData.ELEV));
+                    delay(4000); 
+                }
         }
 };
