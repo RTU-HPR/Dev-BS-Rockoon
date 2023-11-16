@@ -77,16 +77,15 @@ class rotatorAngles {
             registerAddPeer();
             SPI.begin(LoRa_SCK, LoRa_MISO, LoRa_MOSI, LoRa_nss);
             initRadio(radio);
-
             //TODO 
             //setAntennaLocation();
             //setRocketInitLoc();
         }
         void loop(SX1262 radio) {
-            if (!receiveLocation(radio, true) && !checkNewLocation() && Serial.available()>0) { //Strādā, jo abi darbojās un izmaina klases mainīgos un returno tikai vai viss ok, nevis vērtības
+            if (Serial.available()==0 && receiveLocation(radio, true) && checkNewLocation()) { //Strādā, jo abi darbojās un izmaina klases mainīgos un returno tikai vai viss ok, nevis vērtības
                 updateLocation();
             } 
-            else if(Serial.available()>0){
+            if(Serial.available()>0){
                 manualInput();     //Izsauc parseLocation bet ar Serial monitorā nolasīto, nevis saņemto
                 updateLocation();
             }
@@ -160,7 +159,7 @@ class rotatorAngles {
             data = data.substring(data.indexOf(delimiter)+1);
             rocketLongitudeNew = data.substring(0, data.indexOf(delimiter)).toDouble();
             rocketAltitudeNew = data.substring(data.indexOf(delimiter)+1).toDouble();
-            if (debug) {Serial.println("Lat: " + String(rocketLatitudeNew) + "Lng: " + String(rocketLongitudeNew) + "Alt: " + String(rocketAltitudeNew));}
+            if (debug) {Serial.println("Lat: " + String(rocketLatitudeNew) + " Lng: " + String(rocketLongitudeNew) + " Alt: " + String(rocketAltitudeNew));}
 
         }
         bool checkNewLocation() {
