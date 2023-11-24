@@ -16,7 +16,7 @@ class Rotator
   TRACKABLE_OBJECT_POSITION ballon_position;
 
   // Function declaration
-  void update_location(String msg, TRACKABLE_OBJECT_POSITION &ballon_position);
+  void update_location(Comms &comms, TRACKABLE_OBJECT_POSITION &ballon_position);
   void update_angles(Comms &comms, TRACKABLE_OBJECT_POSITION &ballon_position, Config &config);
   
   public:

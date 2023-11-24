@@ -2,18 +2,21 @@
 #include <angle_calculations.h>
 
 // PRIVATE FUNCTIONS
-void Rotator::update_location(String msg, TRACKABLE_OBJECT_POSITION &ballon_position)
+void Rotator::update_location(Comms &comms, TRACKABLE_OBJECT_POSITION &ballon_position)
 {
   // Make a char array from the message
+  String msg = comms.received_data.msg;
+  msg.trim();
   int msg_len = msg.length() + 1;
   char char_array[msg_len];
   msg.toCharArray(char_array, msg_len);
 
-  int result = sscanf(char_array,                 // The char array to read from
-                      "%d,%d",                    // The form the variables are separated in string
-                      &ballon_position.latitude,  // The values to update that correspond to the variable in string
-                      &ballon_position.longitude,
-                      &ballon_position.altitude);
+  char *token = strtok(char_array, ",");
+  ballon_position.latitude = atof(token);
+  token = strtok(NULL, ",");
+  ballon_position.longitude = atof(token);
+  token = strtok(NULL, ",");
+  ballon_position.altitude = atof(token);
 }
 
 void Rotator::update_angles(Comms &comms, TRACKABLE_OBJECT_POSITION &ballon_position, Config &config)
@@ -49,6 +52,13 @@ void Rotator::update(Comms &comms, Config &config)
   // Check if a new position has been received from LoRa
   if (comms.lora_receive(comms.received_data))
   {
+    // Update ballon location from received message
+    Serial.println("Message stored in received data: " + comms.received_data.msg);
+    update_location(comms, ballon_position);
+    Serial.println("Ballon latitude: " + String(ballon_position.latitude));
+    Serial.println("Ballon longitude: " + String(ballon_position.longitude));
+    Serial.println("Ballon altitude: " + String(ballon_position.altitude));
+
     // Update angles from the new position
     update_angles(comms, ballon_position, config);
     new_data = true;
@@ -56,25 +66,27 @@ void Rotator::update(Comms &comms, Config &config)
   // Check if a new position has been entered manually 
   else if(Serial.available() > 0)
   {
-    String a = "";
-    String b = "";
-    int separator_pos = 0;
+    String msg = Serial.readString();
+    Serial.println("Message is: " + msg);
+    int msg_len = msg.length() + 1;
+    char char_array[msg_len];
+    msg.toCharArray(char_array, msg_len);
 
-    a = Serial.readString();
-    b = a;
-
-    separator_pos = a.indexOf(',');
-    String azimuth = a.substring(0,separator_pos);
-    String elevation = b.substring(separator_pos+1, b.length());
-    comms.data_to_rotator.azimuth =  azimuth.toInt();
-    comms.data_to_rotator.elevation= elevation.toInt();
+    char *token = strtok(char_array, ",");
+    ballon_position.latitude = atof(token);
+    token = strtok(NULL, ",");
+    ballon_position.longitude = atof(token);
+    token = strtok(NULL, ",");
+    ballon_position.altitude = atof(token);
+    
+    update_angles(comms, ballon_position, config);
     new_data = true;
   }
 
   // If a new angle has been calculated, send it to the rotator
   if (new_data)
   {
-    Serial.println("Time: " + String(millis()/1000, 0) + " | Elevation: " + String(comms.data_to_rotator.elevation) + " | Azimuth: " + String(comms.data_to_rotator.azimuth));
+    Serial.println("Elevation: " + String(comms.data_to_rotator.elevation) + " | Azimuth: " + String(comms.data_to_rotator.azimuth));
     
     // Send new angle data to rotator
     if (comms.send_data_to_rotator(comms))
@@ -85,7 +97,8 @@ void Rotator::update(Comms &comms, Config &config)
     {
       Serial.println("New angle sending to rotator failed!");
     }
-
+    
     Serial.println();
+    new_data = false;
   }
 }

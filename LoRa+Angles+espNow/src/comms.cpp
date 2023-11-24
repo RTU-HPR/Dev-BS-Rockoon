@@ -54,9 +54,17 @@ bool Comms::init_lora()
 {
   // Start the SPI bus
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
-
+  
   // Initialize SX1262 with default settings
-  int state = lora.begin(434.0);
+  int state = lora.begin();
+  /*
+  lora.setFrequency(434.5);
+  lora.setOutputPower(14);
+  lora.setSpreadingFactor(10);
+  lora.setCodingRate(7);
+  lora.setBandwidth(125);
+  lora.setSyncWord(0xF4);
+  */
   if (state != RADIOLIB_ERR_NONE)
   {
     Serial.println("LoRa initialization failed with error: " + String(state));
@@ -110,8 +118,8 @@ bool Comms::lora_receive(RECEIVED_MESSAGE_STRUCTURE &received_data)
   // Read data from LoRa
   String str;
 
-  int state = lora.readData(str);
-  if (state != RADIOLIB_ERR_NONE)
+  int state = lora.receive(str);
+  if (state != RADIOLIB_ERR_NONE && state != -6)
   {
     Serial.println("LoRa receive error: " + String(state));
     return false;
@@ -125,8 +133,12 @@ bool Comms::lora_receive(RECEIVED_MESSAGE_STRUCTURE &received_data)
   received_data.msg = str;
   received_data.rssi = lora.getRSSI();
   received_data.snr = lora.getSNR();
-  
+  Serial.println("Received data: " + received_data.msg);
+  Serial.println("RSSI: " + String(received_data.rssi));
+  Serial.println("SNR: " + String(received_data.snr));
+
   // Start receiving again
+  // lora.finishTransmit();
   state = lora.startReceive();
   if (state != RADIOLIB_ERR_NONE)
   {
@@ -139,8 +151,19 @@ bool Comms::lora_receive(RECEIVED_MESSAGE_STRUCTURE &received_data)
 
 bool Comms::send_data_to_rotator(Comms &comms)
 {
+  int azimuth = comms.data_to_rotator.azimuth;
+  int elevation = comms.data_to_rotator.elevation;
+  struct Data
+  {
+    int AZIM;
+    int ELEV;
+  };
+  Data data;
+
+  data.AZIM = azimuth;
+  data.ELEV = elevation;
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(ESP_MAC_ADDRESS, (uint8_t*) &comms.data_to_rotator, sizeof(data_to_rotator));
+  esp_err_t result = esp_now_send(ESP_MAC_ADDRESS, (uint8_t*) &data, sizeof(data));
   
   if (result != ESP_OK)
   {
