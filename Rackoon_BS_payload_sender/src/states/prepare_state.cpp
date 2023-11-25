@@ -12,6 +12,8 @@ bool prepare_state_loop(Cansat &cansat)
     longitude = cansat.gpsfin.data.gps_lng;
     altitude = cansat.gpsfin.data.gps_alt;
     String msg = String(latitude,6) + "," + String(longitude, 6) + "," + String(altitude);
+    Serial.println(msg);
+    cansat.log.send_com_lora(msg, cansat.config);
 
     /*
     while (latitude < 70)
