@@ -1,4 +1,4 @@
-#include "core/cansat.h"
+#include "core\cansat.h"
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>

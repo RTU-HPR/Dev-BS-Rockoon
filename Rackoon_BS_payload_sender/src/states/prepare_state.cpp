@@ -1,14 +1,19 @@
-#include "states/prepare_state.h"
-
-double latitude = 60;
+#include "states\prepare_state.h"
+#include "core\gps.h"
+double latitude = 56;
 double longitude = 24;
 float altitude = 1000;
-
-
 // MAIN FUNCTIONS
 // Prepare state loop
 bool prepare_state_loop(Cansat &cansat)
 {
+    cansat.gpsfin.read_gps(cansat.log, cansat.config);
+    latitude = cansat.gpsfin.data.gps_lat;
+    longitude = cansat.gpsfin.data.gps_lng;
+    altitude = cansat.gpsfin.data.gps_alt;
+    String msg = String(latitude,6) + "," + String(longitude, 6) + "," + String(altitude);
+
+    /*
     while (latitude < 70)
     {
         latitude += 1;
@@ -32,6 +37,7 @@ bool prepare_state_loop(Cansat &cansat)
         cansat.log.send_com_lora(msg, cansat.config);
         delay(3000);
     }
+    */
 
     return false;
 }
