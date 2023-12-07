@@ -58,13 +58,8 @@ void Rotator::init(Comms &comms, Config &config)
   Serial.println("Rotator setup completed successfully!");
   Serial.println();
 }
-
-void Rotator::update(Comms &comms, Config &config)
-{
-  // Flag to know if new angles have been calculated
-  bool new_data = false;
-
-  // Check if a new position has been received from LoRa
+bool Rotator::newData(Comms &comms, Config &config){
+   // Check if a new position has been received from LoRa
   if (comms.lora_receive(comms.received_data))
   {
     // Update ballon location from received message
@@ -76,10 +71,13 @@ void Rotator::update(Comms &comms, Config &config)
 
     // Update angles from the new position
     update_angles(comms, ballon_position, config);
-    new_data = true;
+    return true;
+  }else{
+    return false;
   }
-  // Check if a new position has been entered manually 
-  else if(Serial.available() > 0)
+}
+bool Rotator::manualInput(Comms &comms, Config &config){
+  if(Serial.available() > 0)
   {
     String msg = Serial.readString();
     Serial.println("Message is: " + msg);
@@ -95,28 +93,68 @@ void Rotator::update(Comms &comms, Config &config)
     ballon_position.altitude = atof(token);
     
     update_angles(comms, ballon_position, config);
-    new_data = true;
+    return true;
   }
-
-  // If a new angle has been calculated, send it to the rotator
-   if (new_data)
-  {
-  //   Serial.println("Elevation: " + String(comms.data_to_rotator.elevation) + " | Azimuth: " + String(comms.data_to_rotator.azimuth));
-    
-  //   // Send new angle data to rotator
-  //   if (comms.getAngles(comms))
-  //   {
-  //     Serial.println("New angles gotten");
-  //   }
-  //   else
-  //   {
-  //     Serial.println("New angle sending to rotator failed!");
-  //   }
-    
-  //   Serial.println();
-  //   new_data = false;
-    state = true;
-   }else{
-    state = false;
-   }
+return false;
 }
+//void Rotator::update(Comms &comms, Config &config)
+//{
+  // // Flag to know if new angles have been calculated
+  // bool new_data = false;
+
+  // // Check if a new position has been received from LoRa
+  // if (comms.lora_receive(comms.received_data))
+  // {
+  //   // Update ballon location from received message
+  //   Serial.println("Message stored in received data: " + comms.received_data.msg);
+  //   update_location(comms, ballon_position);
+  //   Serial.println("Ballon latitude: " + String(ballon_position.latitude));
+  //   Serial.println("Ballon longitude: " + String(ballon_position.longitude));
+  //   Serial.println("Ballon altitude: " + String(ballon_position.altitude));
+
+  //   // Update angles from the new position
+  //   update_angles(comms, ballon_position, config);
+  //   new_data = true;
+  // }
+  // // Check if a new position has been entered manually 
+  // else if(Serial.available() > 0)
+  // {
+  //   String msg = Serial.readString();
+  //   Serial.println("Message is: " + msg);
+  //   int msg_len = msg.length() + 1;
+  //   char char_array[msg_len];
+  //   msg.toCharArray(char_array, msg_len);
+
+  //   char *token = strtok(char_array, ",");
+  //   ballon_position.latitude = atof(token);
+  //   token = strtok(NULL, ",");
+  //   ballon_position.longitude = atof(token);
+  //   token = strtok(NULL, ",");
+  //   ballon_position.altitude = atof(token);
+    
+  //   update_angles(comms, ballon_position, config);
+  //   new_data = true;
+  // }
+
+  // // If a new angle has been calculated, send it to the rotator
+  //  if (new_data)
+  // {
+  // //   Serial.println("Elevation: " + String(comms.data_to_rotator.elevation) + " | Azimuth: " + String(comms.data_to_rotator.azimuth));
+    
+  // //   // Send new angle data to rotator
+  // //   if (comms.getAngles(comms))
+  // //   {
+  // //     Serial.println("New angles gotten");
+  // //   }
+  // //   else
+  // //   {
+  // //     Serial.println("New angle sending to rotator failed!");
+  // //   }
+    
+  // //   Serial.println();
+  // //   new_data = false;
+  //   state = true;
+  //  }else{
+  //   state = false;
+  //  }
+//}

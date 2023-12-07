@@ -3,13 +3,13 @@
 #include <math.h>
 #include <AccelStepper.h>
 
-#define DIR_AZ 4 /*PIN for Azimuth Direction*/ //4
-#define STEP_AZ 18 /*PIN for Azimuth Steps*/  //18 //nav 0 ? nav nekas jēdzīgs
-#define DIR_EL 33 /*PIN for Elevation Direction*/ //33
-#define STEP_EL 23 /*PIN for Elevation Steps*/ //23
+#define DIR_AZ 39 /*PIN for Azimuth Direction*/ //4
+#define STEP_AZ 45 /*PIN for Azimuth Steps*/  //18 //nav 0 ? nav nekas jēdzīgs
+#define DIR_EL 47 /*PIN for Elevation Direction*/ //33
+#define STEP_EL 48 /*PIN for Elevation Steps*/ //23
 
-#define EN 19 /*PIN for Enable or Disable Stepper Motors*/ //19
-#define EN2 32 /*PIN for Enable or Disable Stepper Motors*/ //32
+#define EN 40 /*PIN for Enable or Disable Stepper Motors*/ //19
+#define EN2 33 /*PIN for Enable or Disable Stepper Motors*/ //32
 #define Microstepping 5
 #define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
 #define STEPPERS_DISABLE() digitalWrite(EN, LOW)
@@ -381,7 +381,7 @@ void setup()
 
   AZstepper.setPinsInverted(true, true, true);
   ELstepper.setPinsInverted(true, true, true);
-  pinMode(27, OUTPUT);
+  //pinMode(27, OUTPUT);
   /*Change these to suit your stepper if you want*/
   AZstepper.setMaxSpeed(MAX_SPEED);
   AZstepper.setAcceleration(MAX_ACCELERATION);
@@ -400,8 +400,8 @@ void setup()
   /*Homing switch*/
   pinMode(HOME_AZ, INPUT_PULLUP);
   pinMode(HOME_EL, INPUT_PULLUP);
-  pinMode(Microstepping, OUTPUT);
-  digitalWrite(Microstepping, HIGH);
+  // pinMode(Microstepping, OUTPUT);
+  // digitalWrite(Microstepping, HIGH);
   
   /*Serial Communication*/
   Serial.begin(BaudRate);
@@ -437,7 +437,7 @@ void loop(){
      STEPPERS_ENABLE(); 
      STEPPERS_ENABLE2();
    }
-
+//cmd_proc(AZstep,ELstep);
    if (Serial.available() > 0){
      a = Serial.readString();
      b=a;
@@ -453,7 +453,7 @@ void loop(){
      Serial.println();
      AZstep =  AZstep*(SPR*RATIO/360);
      ELstep = ELstep*(SPR*RATIO/360);
-     digitalWrite(27, HIGH);
+     //digitalWrite(27, HIGH);
   }
 
   /*Read the steps from serial*/

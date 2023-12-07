@@ -6,12 +6,12 @@
 #include <comms.h>
 Rotator rotator;
 Comms comms;
-#define DIR_AZ 46 /*PIN for Azimuth Direction*/ //4
+#define DIR_AZ 39 /*PIN for Azimuth Direction*/ //4
 #define STEP_AZ 45 /*PIN for Azimuth Steps*/  //18 //nav 0 ? nav nekas jēdzīgs
 #define DIR_EL 47 /*PIN for Elevation Direction*/ //33
 #define STEP_EL 48 /*PIN for Elevation Steps*/ //23
 
-#define EN 42 /*PIN for Enable or Disable Stepper Motors*/ //19
+#define EN 40 /*PIN for Enable or Disable Stepper Motors*/ //19
 #define EN2 33 /*PIN for Enable or Disable Stepper Motors*/ //32
 //#define Microstepping 5
 #define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
@@ -378,7 +378,6 @@ void stepper_move(long stepAz, long stepEl)
 
 
 
-
 void setup()
 {  
 
@@ -418,16 +417,27 @@ void setup()
     ELstepper.setCurrentPosition(0); 
   }
 }
+  const int LORA_MOSI = 10;
+  const int LORA_MISO = 11;
+  const int LORA_SCK = 9;
+  const int LORA_NSS = 8;
+  const int LORA_DIO1 = 14;
+  const int LORA_NRST = 12;
+  const int LORA_BUSY = 13;
 
+  // LoRa object
+  SX1262 lora = new Module(LORA_NSS, LORA_DIO1, LORA_NRST, LORA_BUSY);
+bool state = false;
+ String str;
 void loop(){
+  ///state = rotator.comms.lora_receive(rotator.com
+  //newData(rotator.comms,rotator.config);
    int sk = 0;
    String a = "";
    String b = "";
    /*Define the steps*/
    static long AZstep = 0;
    static long ELstep = 0;
-   static long AZold = 0;
-   static long ELold = 0;
    /*Time Check*/
    if (t_DIS == 0)
      t_DIS = millis();
@@ -442,34 +452,69 @@ void loop(){
      STEPPERS_ENABLE(); 
      STEPPERS_ENABLE2();
    }
-   rotator.update(rotator.comms, rotator.config);
-    if(rotator.state == true){
-    AZstep = comms.data_to_rotator.azimuth;
-    ELstep = comms.data_to_rotator.elevation;
-    AZstep = rotator.manualPosition.azimuth;
-    ELstep = rotator.manualPosition.elevation;
-    Serial.println(String(AZstep) + ", " + String(ELstep));
-    AZstep =  AZstep*(SPR*RATIO/360);
+
+   //some notes. 
+   //First off, for whatever reason, THIS DOESNT WORK IF YOU RUN IT THROUGH EXTERNAL FUNCTIONS (ie calling a function from a class). Only way to do it is to have the function here
+   //dont change the pins, whatever you do.
+   // Do not double up on converting the angle to steps. 
+   //DO NOT PUT STEPPER_MOVE INTO AN IF CLAUSE, IT WILL NOT WORK, IT NEEDS TO BE CONSTANTLY CHECKING IF IT NEEDS TO MAKE A STEP.
+   //dont use pin 27.
+   //why is this so slow????
+  
+   if(Serial.available() > 0)
+  {
+    String msg = Serial.readString();
+    Serial.println("Message is: " + msg);
+    int msg_len = msg.length() + 1;
+    char char_array[msg_len];
+    msg.toCharArray(char_array, msg_len);
+
+    char *token = strtok(char_array, ",");
+    rotator.ballon_position.latitude = atof(token);
+    token = strtok(NULL, ",");
+    rotator.ballon_position.longitude = atof(token);
+    token = strtok(NULL, ",");
+    rotator.ballon_position.altitude = atof(token);
+    
+    rotator.update_angles(rotator.comms, rotator.ballon_position, rotator.config);
+    AZstep = rotator.comms.data_to_rotator.azimuth;
+    ELstep = rotator.comms.data_to_rotator.elevation;
+     AZstep =  AZstep*(SPR*RATIO/360);
     ELstep = ELstep*(SPR*RATIO/360);
-    Serial.println(String(AZstep) + ", " + String(ELstep));
+    Serial.println(String(AZstep)+ ","+ String(ELstep));
+
+    
+  }
+  
+
+ int state = lora.receive(str);
+  if (state != RADIOLIB_ERR_NONE && state != -6)
+  {
+    Serial.println("LoRa receive error: " + String(state));
+  }
+
+  comms.received_data.msg = str;
+  comms.received_data.rssi = lora.getRSSI();
+  comms.received_data.snr = lora.getSNR();
+  Serial.println("Received data: " + comms.received_data.msg);
+  Serial.println("RSSI: " + String(comms.received_data.rssi));
+  Serial.println("SNR: " + String(comms.received_data.snr));
+
+  //Start receiving again
+  lora.finishTransmit();
+  state = lora.startReceive();
+  if (state != RADIOLIB_ERR_NONE)
+  {
+    Serial.println("LoRa receive restart failed: " + String(state));
+  }
+
+  
     stepper_move(AZstep, ELstep);
-    }
     // digitalWrite(27, HIGH);
 
-  /*Read the steps from serial*/
+  //this was already commented out in the original, with that precise wording. No clue whats going on here, albeit at a glance, alternate method for running the rotator ~ Grinums
+  /*Read the steps from serial*/ 
  // cmd_proc(AZstep, ELstep);
-  /*Move the Azimuth & Elevation Motor*/
-  // if(AZold == AZstep){
-  //   stepper_move(0, ELstep);
-  //   ELold = ELstep;
-  // }else if (ELold == ELstep){
-  //   stepper_move(AZstep, 0);
-  //   AZold = AZstep;
-  // }else{
-  //   stepper_move(AZstep, ELstep);
-  //   AZold = AZstep;
-  //   ELold = ELstep;
-  // }
   
   
   
