@@ -12,37 +12,37 @@ const int SPI_SCK = 9;
 //  * RFM96 - Module is SX1272 and family is SX127X
 //  * E22-400 - Module is SX1268 and family is SX126X
 #define radio_module SX1262
-#define radio_module_family SX126X
+#define radio_module_family Sx126x
 
 // RX/TX switching used by the radio module
-//  * DIO2 - If RX/TX enable is controlled by radio chip using DIO2
-//  * GPIO - If RX/TX enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
-//  * DISABLED  - If not using either, set to this
+//  * Dio2 - If RX/TX enable is controlled by radio chip using DIO2
+//  * Gpio - If RX/TX enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
+//  * Disabled  - If not using either, set to this
 // DIO2 and GPIO currently only set up for SX126X LoRa
-#define radio_module_rf_switching DISABLED
+#define radio_module_rf_switching Disabled
 
 // Radio module config
-RadioLib_Wrapper<radio_module>::RADIO_CONFIG radio_config{
-    .FREQUENCY = 434, // Frequency
-    .CS = 8,          // Chip select
-    .DIO0 = 13,       // Busy
-    .DIO1 = 14,       // Interrupt action
-    .FAMILY = RadioLib_Wrapper<radio_module>::RADIO_CONFIG::CHIP_FAMILY::radio_module_family,
-    .rf_switching = RadioLib_Wrapper<radio_module>::RADIO_CONFIG::RF_SWITCHING::radio_module_rf_switching,
+RadioLib_Wrapper<radio_module>::Radio_Config radio_config{
+    .frequency = 434, // Frequency
+    .cs = 8,          // Chip select
+    .dio0 = 13,       // Busy
+    .dio1 = 14,       // Interrupt action
+    .family = RadioLib_Wrapper<radio_module>::Radio_Config::Chip_Family::radio_module_family,
+    .rf_switching = RadioLib_Wrapper<radio_module>::Radio_Config::Rf_Switching::radio_module_rf_switching,
     // If using GPIO pins for RX/TX switching, define pins used for RX and TX control
-    .RX_ENABLE = -1,
-    .TX_ENABLE = -1,
-    .RESET = 12,
-    .SYNC_WORD = 0xF4,
-    .TXPOWER = 14,
-    .SPREADING = 10,
-    .CODING_RATE = 7,
-    .SIGNAL_BW = 125,
-    .SPI_BUS = &SPI // SPI bus used by radio
+    .rx_enable = -1,
+    .tx_enable = -1,
+    .reset = 12,
+    .sync_word = 0xF4,
+    .tx_power = 14,
+    .spreading = 10,
+    .coding_rate = 7,
+    .signal_bw = 125,
+    .spi_bus = &SPI // SPI bus used by radio
 };
 
-// Create radio object
-RadioLib_Wrapper<radio_module> radio = RadioLib_Wrapper<radio_module>(nullptr);
+// Create radio object and pass error function if not passed will use serial print
+RadioLib_Wrapper<radio_module> radio = RadioLib_Wrapper<radio_module>(nullptr, 5);
 
 // Ping pong
 bool should_transmit = true;
@@ -52,8 +52,13 @@ unsigned long last_transmit_time = 0;
 
 void setup()
 {
+    Serial.begin(115200);
+    while (!Serial)
+    {
+        delay(5); // wait for serial
+    }
     // Configure and begin SPI bus
-    radio_config.SPI_BUS->begin(SPI_SCK, SPI_RX, SPI_TX);
+    radio_config.spi_bus->begin(SPI_SCK, SPI_RX, SPI_TX);
 
     // Configure radio module
     if (!radio.begin(radio_config))
@@ -64,7 +69,7 @@ void setup()
             delay(5000);
         }
     }
-
+    Serial.println("Lora initialized");
     // If required a test message can be transmitted
     // radio.test_transmit();
 }
@@ -96,10 +101,15 @@ void loop()
     {
         String tx_message = "Ping pong message " + String(message_index);
         radio.add_checksum(tx_message);
-        radio.transmit(tx_message);
+
+        while (!radio.transmit(tx_message))
+        {
+            delay(5);
+        }
+        Serial.println("msg sent");
 
         message_index++;
-        should_transmit = false;
+        // should_transmit = false;
         last_transmit_time = millis();
     }
 }
