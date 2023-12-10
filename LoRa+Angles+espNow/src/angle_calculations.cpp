@@ -1,8 +1,4 @@
-#pragma once
-
-#include "Arduino.h"
-
-//Visām funkcijām vajag kopā 5 mainīgos, abas antenas koordinātes, abas raķetes koordinātes un raķetes augstumu
+#include <angle_calculations.h>
 
 double haversine(double rocketLatitude, double rocketLongitude, double antennaLatitude, double antennaLongitude) {
   int r = 6371000;
