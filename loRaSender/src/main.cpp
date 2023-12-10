@@ -38,6 +38,7 @@ RadioLib_Wrapper<radio_module>::Radio_Config radio_config{
     .spreading = 10,
     .coding_rate = 7,
     .signal_bw = 125,
+    .frequency_correction = false,
     .spi_bus = &SPI // SPI bus used by radio
 };
 
@@ -82,7 +83,8 @@ void loop()
     float snr = 0;
 
     // Check if anything has been received
-    if (radio.receive(msg, rssi, snr))
+    double frquency = 0;
+    if (radio.receive(msg, rssi, snr, frquency))
     {
         // Check if checksum matches
         if (radio.check_checksum(msg))

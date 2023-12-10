@@ -13,9 +13,10 @@ const int SPI_RX = 11; // MISO
 const int SPI_TX = 10; // MOSI
 const int SPI_SCK = 9;
 
+
 GPS gps;
 // LoRa object
-#define radio_module SX1268
+#define radio_module SX1262
 #define radio_module_family Sx126x
 #define radio_module_rf_switching Disabled
 
@@ -473,11 +474,14 @@ void loraReceive(RECEIVED_MESSAGE_STRUCTURE &received)
 
 void setup()
 {
+    Serial.begin(BaudRate);
     gps.initGPS();
     gps.readGPS();
     rotatorPostion.rotLat = gps.data.gpsLat;
     rotatorPostion.rotLon = gps.data.gpsLon;
-    // radio_config.SPI_BUS->begin(SPI_SCK, SPI_RX, SPI_TX);
+
+    radio_config.spi_bus->begin(SPI_SCK, SPI_RX, SPI_TX);
+
     AZstepper.setPinsInverted(true, true, true);
     ELstepper.setPinsInverted(true, true, true);
     // pinMode(27, OUTPUT);
@@ -495,7 +499,7 @@ void setup()
     pinMode(EN2, OUTPUT);
     STEPPERS_ENABLE();
     STEPPERS_ENABLE2();
-
+   
     /*Homing switch*/
     pinMode(HOME_AZ, INPUT_PULLUP);
     pinMode(HOME_EL, INPUT_PULLUP);
@@ -503,7 +507,7 @@ void setup()
     // digitalWrite(Microstepping, HIGH);
 
     /*Serial Communication*/
-    Serial.begin(BaudRate);
+    
     if (homingEnabled)
     {
         /*Initial Homing*/
@@ -525,6 +529,7 @@ void setup()
 
     // If required a test message can be transmitted
     // radio.test_transmit();
+    
 }
 
 void loop()
