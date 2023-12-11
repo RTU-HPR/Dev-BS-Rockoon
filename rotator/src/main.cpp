@@ -1,20 +1,20 @@
+#include <Arduino.h>
+#include <SPI.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
 #include <AccelStepper.h>
 #include <angle_calculations.h>
-#include <RadioLib.h>
-#include <gps.h>
-#include <Arduino.h>
+#include <Gps_wrapper.h>
 #include "RadioLib_wrapper.h"
-#include <SPI.h>
+
+Gps gps;
+
 // LoRa pins
 const int SPI_RX = 11; // MISO
 const int SPI_TX = 10; // MOSI
 const int SPI_SCK = 9;
 
-
-GPS gps;
 // LoRa object
 #define radio_module SX1262
 #define radio_module_family Sx126x
@@ -117,12 +117,33 @@ struct angles
 };
 struct RECEIVED_MESSAGE_STRUCTURE
 {
-    String msg = "";
+    String msg;
     float rssi;
     float snr;
-    double frequency = 0;
+    double frequency;
+    bool processed;
+    bool checksum_good;
+    bool radio_message;
 };
 RECEIVED_MESSAGE_STRUCTURE received;
+
+struct TELEMETRY_PACKET_STRUCTURE
+{
+    int id;
+    int hour;
+    int minute;
+    int second;
+    double lat;
+    double lng;
+    float gps_altitude;
+    float temperature;
+    int gps_satellites;
+    int pressure;
+    float speed;
+    float baro_altitude;
+};
+TELEMETRY_PACKET_STRUCTURE telemetry_data;
+
 /*Convert steps to degrees*/
 double step2deg(long Step)
 {
@@ -457,30 +478,49 @@ void stepper_move(long stepAz, long stepEl)
     AZstepper.run();
     ELstepper.run();
 }
-void loraReceive(RECEIVED_MESSAGE_STRUCTURE &received)
+
+// Check for received commands from Radio or PC
+bool receive_command(RECEIVED_MESSAGE_STRUCTURE &received)
 {
+    // Check for any messages from Radio
     if (radio.receive(received.msg, received.rssi, received.snr, received.frequency))
     {
+        // Check if checksum matches
         if (radio.check_checksum(received.msg))
         {
-            Serial.println("LoRa received: " + received.msg + " | RSSI: " + received.rssi + "| SNR: " + received.snr + "| FREQUENCY: " + received.frequency);
+            received.checksum_good = true;
         }
         else
         {
-            Serial.println("LoRa received with checksum fail: " + received.msg + " | RSSI: " + received.rssi + "| SNR: " + received.snr + "| FREQUENCY: " + received.frequency);
+            received.checksum_good = false;
         }
+        received.processed = false;
+        received.radio_message = true;
+
+        return true;
     }
+
+    // Check for any messages from PC
+    if (Serial.available() > 0)
+    {
+        received.msg = Serial.readString();
+        // Remove any line ending symbols
+        received.msg.trim(); 
+        
+        received.checksum_good = true;
+        received.processed = false;
+        received.radio_message = false;
+        
+        return true;
+    }    
+
+    return false;
 }
 
 void setup()
 {
     Serial.begin(BaudRate);
-    gps.initGPS();
-    gps.readGPS();
-    rotatorPostion.rotLat = gps.data.gpsLat;
-    rotatorPostion.rotLon = gps.data.gpsLon;
-
-    radio_config.spi_bus->begin(SPI_SCK, SPI_RX, SPI_TX);
+    gps.begin(Serial1, 6, 7);
 
     AZstepper.setPinsInverted(true, true, true);
     ELstepper.setPinsInverted(true, true, true);
@@ -505,8 +545,6 @@ void setup()
     pinMode(HOME_EL, INPUT_PULLUP);
     // pinMode(Microstepping, OUTPUT);
     // digitalWrite(Microstepping, HIGH);
-
-    /*Serial Communication*/
     
     if (homingEnabled)
     {
@@ -518,6 +556,8 @@ void setup()
         AZstepper.setCurrentPosition(0);
         ELstepper.setCurrentPosition(0);
     }
+
+    radio_config.spi_bus->begin(SPI_SCK, SPI_RX, SPI_TX);
     if (!radio.begin(radio_config))
     {
         while (true)
@@ -529,7 +569,6 @@ void setup()
 
     // If required a test message can be transmitted
     // radio.test_transmit();
-    
 }
 
 void loop()
@@ -556,25 +595,72 @@ void loop()
         STEPPERS_ENABLE();
         STEPPERS_ENABLE2();
     }
-    loraReceive(received);
-    // cmd_proc(AZstep,ELstep);
-    if (Serial.available() > 0)
-    {
-        String msg = Serial.readString();
-        Serial.println("Message is: " + msg);
-        int msg_len = msg.length() + 1;
-        char char_array[msg_len];
-        msg.toCharArray(char_array, msg_len);
 
-        char *token = strtok(char_array, ",");
-        position.latitude = atof(token);
-        token = strtok(NULL, ",");
-        position.longitude = atof(token);
-        token = strtok(NULL, ",");
-        position.altitude = atof(token);
+    // Read gps
+    gps.readGps();
 
-        AZstep = calculateAzimuth(position.latitude, position.longitude, rotatorPostion.rotLat, rotatorPostion.rotLon, 1);
-        ELstep = calculateElevAngle(position.latitude, position.longitude, rotatorPostion.rotLat, rotatorPostion.rotLon, position.altitude, 1);
+    // Check for any received messages from Radio or PC
+    if (receive_command(received))
+    { 
+        // Print the received message to PC
+        if (received.radio_message)
+        {
+            Serial.print("RADIO COMMAND | RSSI: " + String(received.rssi) + " | SNR: " + String(received.snr) + " FREQUENCY: " + String(received.frequency, 8) + " | MSG: ");
+        }
+        else
+        {
+            Serial.print("PC COMMAND | MSG: ");
+        }
+        Serial.println(received.msg);
+
+        if (received.msg != "" && received.radio_message && received.checksum_good)
+        {
+            String read_str = received.msg;
+            // Make a char array from the string
+            int read_str_len = read_str.length() + 1;
+            char char_array[read_str_len];
+            read_str.toCharArray(char_array, read_str_len);
+
+            // Set the last state variables to the ones read from the file
+            int result = sscanf(char_array,                                
+                                "$$%i,%i:%i:%i,%f,%f,%f,%f,%i,%i,%f,%f*",  
+                                &telemetry_data.id,
+                                &telemetry_data.hour,
+                                &telemetry_data.minute,
+                                &telemetry_data.second,
+                                &telemetry_data.lat,
+                                &telemetry_data.lng,
+                                &telemetry_data.gps_altitude,
+                                &telemetry_data.temperature,
+                                &telemetry_data.gps_satellites,
+                                &telemetry_data.pressure,
+                                &telemetry_data.speed,
+                                &telemetry_data.baro_altitude
+                                );
+            if (result)
+            {
+                position.latitude = telemetry_data.lat;
+                position.longitude = telemetry_data.lng;
+            }
+        }
+        else if (received.msg != "")
+        {
+            String read_str = received.msg;
+            read_str.trim();
+            // Make a char array from the string
+            int read_str_len = read_str.length() + 1;
+            char char_array[read_str_len];
+            read_str.toCharArray(char_array, read_str_len);
+
+            // Set the last state variables to the ones read from the file
+            int result = sscanf(char_array,                                
+                                "%f,%f",  
+                                &position.latitude,
+                                &position.longitude
+                                );
+        }
+        AZstep = calculateAzimuth(position.latitude, position.longitude, gps.data.lat, gps.data.lng, 1);
+        ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, gps.data.altitude, 1);
 
         AZstep = AZstep * (SPR * RATIO / 360);
         ELstep = ELstep * (SPR * RATIO / 360);
