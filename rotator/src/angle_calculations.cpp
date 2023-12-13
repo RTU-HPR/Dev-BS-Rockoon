@@ -1,15 +1,15 @@
 #include <angle_calculations.h>
 
 double haversine(double rocketLatitude, double rocketLongitude, double antennaLatitude, double antennaLongitude) {
-  int r = 6371000;
+  unsigned long r = 6371000;
   double d = 2*r*asin(sqrt(pow(sin((rocketLatitude-antennaLatitude)*PI/180/2),2)
     +cos(rocketLatitude*PI/180)*cos(antennaLatitude*PI/180)*pow(sin((rocketLongitude-antennaLongitude)*PI/180/2),2))); //Haversine
   return d;
 }
 
 int calculateElevAngle(double rocketLatitude, double rocketLongitude, double antennaLatitude, double antennaLongitude, double rocketAltitude, int precision){   //Izvada leņķi starp pieskari un taisno līniju uz objektu
-  int circumference = 40075000;
-  int r = 6371000;
+  unsigned long circumference = 40075000;
+  unsigned long r = 6371000;
   double surfaceDistance = haversine(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude);
 
   float angleBAD = surfaceDistance/circumference*2*PI;

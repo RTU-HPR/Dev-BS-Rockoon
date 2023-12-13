@@ -36,20 +36,21 @@ RadioLib_Wrapper<radio_module>::Radio_Config radio_config{
     .tx_power = 14,
     .spreading = 10,
     .coding_rate = 7,
-    .signal_bw = 125,
+    .signal_bw = 62.5,
+    .frequency_correction = true,
     .spi_bus = &SPI // SPI bus used by radio
 };
 // Create radio object and pass error function if not passed will use serial print
 RadioLib_Wrapper<radio_module> radio = RadioLib_Wrapper<radio_module>(nullptr, 5);
 
-#define DIR_AZ 39 /*PIN for Azimuth Direction*/   // 4
-#define STEP_AZ 45 /*PIN for Azimuth Steps*/      // 18 //nav 0 ? nav nekas jēdzīgs
-#define DIR_EL 47 /*PIN for Elevation Direction*/ // 33
-#define STEP_EL 48 /*PIN for Elevation Steps*/    // 23
+#define EN2 42     /*PIN for Enable or Disable Stepper Motors*/
+#define DIR_EL 46  /*PIN for Azimuth Direction*/
+#define STEP_EL 45 /*PIN for Azimuth Steps*/
 
-#define EN 40 /*PIN for Enable or Disable Stepper Motors*/  // 19
-#define EN2 33 /*PIN for Enable or Disable Stepper Motors*/ // 32
-#define Microstepping 5
+#define EN 33      /*PIN for Enable or Disable Stepper Motors*/
+#define DIR_AZ 47  /*PIN for Elevation Direction*/
+#define STEP_AZ 48 /*PIN for Elevation Steps*/
+
 #define STEPPERS_ENABLE() digitalWrite(EN, HIGH)
 #define STEPPERS_DISABLE() digitalWrite(EN, LOW)
 
@@ -138,7 +139,7 @@ struct TELEMETRY_PACKET_STRUCTURE
     float gps_altitude;
     float temperature;
     int gps_satellites;
-    int pressure;
+    int pessure;
     float speed;
     float baro_altitude;
 };
@@ -505,14 +506,14 @@ bool receive_command(RECEIVED_MESSAGE_STRUCTURE &received)
     {
         received.msg = Serial.readString();
         // Remove any line ending symbols
-        received.msg.trim(); 
-        
+        received.msg.trim();
+
         received.checksum_good = true;
         received.processed = false;
         received.radio_message = false;
-        
+
         return true;
-    }    
+    }
 
     return false;
 }
@@ -539,13 +540,13 @@ void setup()
     pinMode(EN2, OUTPUT);
     STEPPERS_ENABLE();
     STEPPERS_ENABLE2();
-   
+
     /*Homing switch*/
     pinMode(HOME_AZ, INPUT_PULLUP);
     pinMode(HOME_EL, INPUT_PULLUP);
     // pinMode(Microstepping, OUTPUT);
     // digitalWrite(Microstepping, HIGH);
-    
+
     if (homingEnabled)
     {
         /*Initial Homing*/
@@ -571,8 +572,55 @@ void setup()
     // radio.test_transmit();
 }
 
+void printData(const String *captions, const String *values, size_t size)
+{
+    Serial.print("Data: ");
+    for (size_t i = 0; i < size; i++)
+    {
+        Serial.print(captions[i]);
+        Serial.print(": ");
+        Serial.print(values[i]);
+        Serial.print(", ");
+    }
+    Serial.println();
+}
+
+// Function to parse a string containing comma-separated values as strings
+void parseString(const String &input, String *values, size_t maxSize)
+{
+    int startIndex = 0;
+    int endIndex = input.indexOf(',');
+    size_t index = 0;
+
+    while (endIndex != -1 && index < maxSize)
+    {
+        // Extract each substring
+        values[index] = input.substring(startIndex, endIndex);
+
+        // Move to the next substring
+        startIndex = endIndex + 1;
+        endIndex = input.indexOf(',', startIndex);
+        index++;
+    }
+
+    // Process the last substring
+    if (index < maxSize)
+    {
+        values[index] = input.substring(startIndex);
+    }
+}
+
 void loop()
 {
+    String longitude;
+    String latitude;
+    String altitude;
+
+    String captions[] = {"Callsign", "id", "Time", "Latitude", "Longitude", "Altitude", "Temperature", "Satellites", "Pressure", "Speed", "Barometric Altitude"};
+    String inputString = {"RTU VIP,3,18:04:43,40.123456,-75.987654,123.45,25.5,25.67,10,950.20,100.0"}; // here goes the received LoRa packet
+    constexpr size_t maxSize = 13;                                                                      // number of variables in the message
+    String values[maxSize];
+
     int sk = 0;
     String a = "";
     String b = "";
@@ -586,14 +634,14 @@ void loop()
     /*Disable Motors*/
     if (AZstep == AZstepper.currentPosition() && ELstep == ELstepper.currentPosition() && millis() - t_DIS > T_DELAY)
     {
-        STEPPERS_DISABLE();
         STEPPERS_DISABLE2();
+        STEPPERS_DISABLE();
     }
     else
     {
         /*Enable Motors*/
-        STEPPERS_ENABLE();
         STEPPERS_ENABLE2();
+        STEPPERS_ENABLE();
     }
 
     // Read gps
@@ -601,7 +649,7 @@ void loop()
 
     // Check for any received messages from Radio or PC
     if (receive_command(received))
-    { 
+    {
         // Print the received message to PC
         if (received.radio_message)
         {
@@ -615,56 +663,60 @@ void loop()
 
         if (received.msg != "" && received.radio_message && received.checksum_good)
         {
-            String read_str = received.msg;
-            // Make a char array from the string
-            int read_str_len = read_str.length() + 1;
-            char char_array[read_str_len];
-            read_str.toCharArray(char_array, read_str_len);
 
-            // Set the last state variables to the ones read from the file
-            int result = sscanf(char_array,                                
-                                "$$%i,%i:%i:%i,%f,%f,%f,%f,%i,%i,%f,%f*",  
-                                &telemetry_data.id,
-                                &telemetry_data.hour,
-                                &telemetry_data.minute,
-                                &telemetry_data.second,
-                                &telemetry_data.lat,
-                                &telemetry_data.lng,
-                                &telemetry_data.gps_altitude,
-                                &telemetry_data.temperature,
-                                &telemetry_data.gps_satellites,
-                                &telemetry_data.pressure,
-                                &telemetry_data.speed,
-                                &telemetry_data.baro_altitude
-                                );
-            if (result)
-            {
-                position.latitude = telemetry_data.lat;
-                position.longitude = telemetry_data.lng;
-            }
+            String msg = received.msg;
+            msg.trim();
+
+            parseString(inputString, values, maxSize);
+
+            // Call the function to print data captions and values
+            printData(captions, values, sizeof(captions) / sizeof(captions[0]));
+            telemetry_data.id = (values[1]).toInt();
+            const char *time = (values[2]).c_str();
+            telemetry_data.lat = (values[3]).toDouble();
+            telemetry_data.lng = (values[4]).toDouble();
+            telemetry_data.gps_altitude = (values[5]).toDouble();
+            telemetry_data.temperature = (values[6]).toFloat();
+            telemetry_data.gps_satellites = (values[7]).toInt();
+            telemetry_data.pressure = (values[8]).toInt();
+            telemetry_data.speed = (values[9]).toFloat();
+            telemetry_data.baro_altitude = (values[10]).toFloat();
+            position.latitude = telemetry_data.lat;
+            position.longitude = telemetry_data.lng;
+            position.altitude = telemetry_data.gps_altitude;
         }
         else if (received.msg != "")
         {
-            String read_str = received.msg;
-            read_str.trim();
+            String msg = received.msg;
+            msg.trim();
             // Make a char array from the string
-            int read_str_len = read_str.length() + 1;
-            char char_array[read_str_len];
-            read_str.toCharArray(char_array, read_str_len);
+            int msg_len = msg.length() + 1;
+            char char_array[msg_len];
+            msg.toCharArray(char_array, msg_len);
 
-            // Set the last state variables to the ones read from the file
-            int result = sscanf(char_array,                                
-                                "%f,%f",  
-                                &position.latitude,
-                                &position.longitude
-                                );
+            char *token = strtok(char_array, ",");
+            position.latitude = atof(token);
+            token = strtok(NULL, ",");
+            position.longitude = atof(token);
+            token = strtok(NULL, ",");
+            position.altitude = atof(token);
+
+            Serial.println(position.latitude);
+            Serial.println(position.longitude);
         }
+        Serial.println("1");
         AZstep = calculateAzimuth(position.latitude, position.longitude, gps.data.lat, gps.data.lng, 1);
-        ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, gps.data.altitude, 1);
+        Serial.println("2");
+        ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, position.altitude, 1);
+        Serial.println("3");
 
+        Serial.println(String(AZstep) + "," + String(ELstep));
+        Serial.println("4");
         AZstep = AZstep * (SPR * RATIO / 360);
         ELstep = ELstep * (SPR * RATIO / 360);
-        Serial.println(String(AZstep) + "," + String(ELstep));
+        Serial.println("5");
+        Serial.println("last" + String(AZstep) + "," + String(ELstep));
+        Serial.println("6");
     }
 
     /*Read the steps from serial*/
