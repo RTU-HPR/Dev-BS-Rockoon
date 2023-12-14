@@ -4,8 +4,6 @@
 
 // I2C
 // CHANGE TO USED PINS AND I2C BUS
-const int SDA = 0;
-const int SCL = 1;
 #define WIRE Wire // Wire or Wire1
 
 // Port extender object
@@ -31,7 +29,7 @@ void setup() {
   // Set all pins to input
   for (uint8_t p=0; p<16; p++)
   {
-    pcf.pinMode(p, INPUT_PULLUP);
+    pcf.pinMode(p, INPUT_PULLDOWN);
   }
 }
 
@@ -45,5 +43,5 @@ void loop() {
       Serial.println(" pressed!");
     }
   }
-  delay(1);
+  delay(10);
 }

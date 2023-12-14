@@ -82,6 +82,15 @@ unsigned long last_track_ms = 0;
 uint8_t is_tracking = 0;
 // v rezime track detect rotator ide do urceneho bodu najkratsou cestou
 
+// Sendable messages
+const String PING_MSG = "BFC_PING";
+const String ATKABE_MSG = "BFC_ATKABE";
+const String BUZZER_ON_MSG = "BFC_BUZZER_ON";
+const String BUZZER_OFF_MSG = "BFC_BUZZER_OFF";
+const String DATA_REQUEST_MSG = "BFC_DATA_REQUEST";
+const String DATA_SEND_ON_MSG = "BFC_DATA_SEND_ON";
+const String DATA_SEND_OFF_MSG = "BFC_DATA_SEND_OFF";
+
 #define BufferSize 256
 #define BaudRate 115200
 
@@ -107,8 +116,9 @@ Position position;
 
 struct rotatorPosition
 {
-    double rotLat = 56.931245;
-    double rotLon = 24.124262;
+    double rotLat = 56.953878;
+    double rotLon = 24.081800;
+    float rotAlt = 0;
 };
 rotatorPosition rotatorPostion;
 struct angles
@@ -139,7 +149,7 @@ struct TELEMETRY_PACKET_STRUCTURE
     float gps_altitude;
     float temperature;
     int gps_satellites;
-    int pessure;
+    int pressure;
     float speed;
     float baro_altitude;
 };
@@ -518,6 +528,17 @@ bool receive_command(RECEIVED_MESSAGE_STRUCTURE &received)
     return false;
 }
 
+// Sends the provided message using LoRa
+bool send_radio(String msg, bool calculate_checksum)
+{
+    if (calculate_checksum)
+    {
+        radio.add_checksum(msg);
+    }
+    bool status = radio.transmit(msg);
+    return status;
+}
+
 void setup()
 {
     Serial.begin(BaudRate);
@@ -612,12 +633,8 @@ void parseString(const String &input, String *values, size_t maxSize)
 
 void loop()
 {
-    String longitude;
-    String latitude;
-    String altitude;
-
     String captions[] = {"Callsign", "id", "Time", "Latitude", "Longitude", "Altitude", "Temperature", "Satellites", "Pressure", "Speed", "Barometric Altitude"};
-    String inputString = {"RTU VIP,3,18:04:43,40.123456,-75.987654,123.45,25.5,25.67,10,950.20,100.0"}; // here goes the received LoRa packet
+    //String inputString = {"RTU VIP,3,18:04:43,40.123456,-75.987654,123.45,25.5,25.67,10,950.20,100.0"}; // here goes the received LoRa packet
     constexpr size_t maxSize = 13;                                                                      // number of variables in the message
     String values[maxSize];
 
@@ -646,7 +663,6 @@ void loop()
 
     // Read gps
     gps.readGps();
-
     // Check for any received messages from Radio or PC
     if (receive_command(received))
     {
@@ -661,13 +677,44 @@ void loop()
         }
         Serial.println(received.msg);
 
-        if (received.msg != "" && received.radio_message && received.checksum_good)
-        {
+        String msg = received.msg;
+        msg.trim();
+        received.msg = msg; 
 
+        if (received.msg == PING_MSG && !received.radio_message)
+        {
+            send_radio(PING_MSG, true);
+        }
+        else if (received.msg == ATKABE_MSG && !received.radio_message)
+        {
+            send_radio(ATKABE_MSG, true); 
+        }
+        else if (received.msg == BUZZER_ON_MSG && !received.radio_message)
+        {
+            send_radio(BUZZER_ON_MSG, true); 
+        }
+        else if (received.msg == BUZZER_OFF_MSG && !received.radio_message)
+        {
+            send_radio(BUZZER_OFF_MSG, true); 
+        }
+        else if (received.msg == DATA_REQUEST_MSG && !received.radio_message)
+        {
+            send_radio(DATA_REQUEST_MSG, true); 
+        }
+        else if (received.msg == DATA_SEND_ON_MSG && !received.radio_message)
+        {
+            send_radio(DATA_SEND_ON_MSG, true); 
+        }
+        else if (received.msg == DATA_SEND_OFF_MSG && !received.radio_message)
+        {
+            send_radio(DATA_SEND_OFF_MSG, true); 
+        }
+        else if (received.msg != "" && received.radio_message && received.checksum_good)
+        {
             String msg = received.msg;
             msg.trim();
 
-            parseString(inputString, values, maxSize);
+            parseString(msg, values, maxSize);
 
             // Call the function to print data captions and values
             printData(captions, values, sizeof(captions) / sizeof(captions[0]));
@@ -684,8 +731,19 @@ void loop()
             position.latitude = telemetry_data.lat;
             position.longitude = telemetry_data.lng;
             position.altitude = telemetry_data.gps_altitude;
+
+            rotatorPostion.rotLat = gps.data.lat;
+            rotatorPostion.rotLon = gps.data.lng;
+            rotatorPostion.rotAlt = gps.data.altitude;
+
+            Serial.println("ROTATOR GPS: " + String(gps.data.lat) + " | " + String(gps.data.lng) + " | " + String(gps.data.altitude));
+            AZstep = calculateAzimuth(position.latitude, position.longitude, gps.data.lat, gps.data.lng, 1);
+            ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, position.altitude, 1);
+            Serial.println("Calculated degrees" + String(AZstep) + " | " + String(ELstep));
+            AZstep = AZstep * (SPR * RATIO / 360);
+            ELstep = ELstep * (SPR * RATIO / 360);
         }
-        else if (received.msg != "")
+        else if (received.msg.charAt(0) != 'B')
         {
             String msg = received.msg;
             msg.trim();
@@ -703,23 +761,15 @@ void loop()
 
             Serial.println(position.latitude);
             Serial.println(position.longitude);
+            AZstep = calculateAzimuth(position.latitude, position.longitude, gps.data.lat, gps.data.lng, 1);
+            ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, position.altitude, 1);
+
+            Serial.println("Calculated degrees" + String(AZstep) + " | " + String(ELstep));
+            AZstep = AZstep * (SPR * RATIO / 360);
+            ELstep = ELstep * (SPR * RATIO / 360);
         }
-        Serial.println("1");
-        AZstep = calculateAzimuth(position.latitude, position.longitude, gps.data.lat, gps.data.lng, 1);
-        Serial.println("2");
-        ELstep = calculateElevAngle(position.latitude, position.longitude, gps.data.lat, gps.data.lng, position.altitude, 1);
-        Serial.println("3");
-
-        Serial.println(String(AZstep) + "," + String(ELstep));
-        Serial.println("4");
-        AZstep = AZstep * (SPR * RATIO / 360);
-        ELstep = ELstep * (SPR * RATIO / 360);
-        Serial.println("5");
-        Serial.println("last" + String(AZstep) + "," + String(ELstep));
-        Serial.println("6");
     }
-
     /*Read the steps from serial*/
     // cmd_proc(AZstep, ELstep);
-    stepper_move(AZstep, ELstep);
+    //stepper_move(AZstep, ELstep);
 }
