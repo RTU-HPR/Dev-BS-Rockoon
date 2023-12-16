@@ -7,29 +7,25 @@ double haversine(double rocketLatitude, double rocketLongitude, double antennaLa
   return d;
 }
 
-int calculateElevAngle(double rocketLatitude, double rocketLongitude, double rocketAltitude, double antennaLatitude, double antennaLongitude, double antennaAltitude, int precision){   //Izvada leņķi starp pieskari un taisno līniju uz objektu
+int calculateElevAngle(double rocketLatitude, double rocketLongitude, double rocketAltitude, double antennaLatitude, double antennaLongitude, int precision){   //Izvada leņķi starp pieskari un taisno līniju uz objektu
   unsigned long circumference = 40075000;
   unsigned long r = 6371000;
   double surfaceDistance = haversine(rocketLatitude, rocketLongitude, antennaLatitude, antennaLongitude);
 
-  // Calculate the altitude delta between antenna and rotator
-  double altitudeDelta = rocketAltitude - antennaAltitude;
-  // Ignore negative altitudes
-  if (altitudeDelta < 0)
-  {
-    altitudeDelta = 0;
-  }
-
   float angleBAD = surfaceDistance/circumference*2*PI;
   float BD = sqrt(2*pow(r,2)*(1-cos(angleBAD)));       //Attālums starp atrašanās vietām ejo taisnā līnijā caur zemi (ignorējot augstumu)
-  double angleABD = (PI-angleBAD)/2;                   //leņķis starp rādiusu un līniju caur zemi
+  double angleABD = (PI-angleBAD)/2.0;                   //leņķis starp rādiusu un līniju caur zemi
   double angleCDB = PI-angleABD;                       //Leņķis starp augstuma taisni un taisni caur zemi
-  double BC = sqrt(BD*BD + altitudeDelta*altitudeDelta + BD*altitudeDelta*cos(angleCDB));  //Taisnas līnijas attālums līdz raķetei
-  double angleDBC = asin(altitudeDelta*sin(angleCDB)/BC);   //leņķis starp caur zemi esošo līniju un taisno līniju līdz objektam
+  double BC = sqrt(BD*BD + rocketAltitude*rocketAltitude + BD*rocketAltitude*cos(angleCDB));  //Taisnas līnijas attālums līdz raķetei
+  Serial.println("CALC Straight line to ballon: " + String(BC, 6));
+  double angleDBC = asin(rocketAltitude*sin(angleCDB)/BC);   //leņķis starp caur zemi esošo līniju un taisno līniju līdz objektam
+  Serial.println("CALC Angle between earth line and balloon: " + String(angleDBC, 6));
   double outputAngle = (angleDBC-PI/2+angleABD);
   double outputAngleDegrees = outputAngle*180/PI;
+  Serial.println("CALC Output angle: " + String(outputAngleDegrees, 6));
   int rounded = round(outputAngleDegrees/precision)*precision;
-  return rounded;           
+  Serial.println("CALC Output angle rounded: " + String(rounded));
+  return rounded;
 }
 
 int calculateAzimuth(double rocketLatitude, double rocketLongitude, double antennaLatitude, double antennaLongitude, double precision){

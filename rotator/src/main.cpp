@@ -7,6 +7,7 @@
 #include <angle_calculations.h>
 #include <TinyGPS++.h>
 #include "RadioLib_wrapper.h"
+#include <esp_now_wrapper.h>
 
 TinyGPSPlus gps;
 unsigned long lastGpsPrintMillis = 0;
@@ -35,8 +36,8 @@ RadioLib_Wrapper<radio_module>::Radio_Config radio_config{
     .reset = 12,
     .sync_word = 0xF4,
     .tx_power = 14,
-    .spreading = 10,
-    .coding_rate = 7,
+    .spreading = 11,
+    .coding_rate = 8,
     .signal_bw = 62.5,
     .frequency_correction = true,
     .spi_bus = &SPI // SPI bus used by radio
@@ -117,9 +118,12 @@ Position position;
 
 struct rotatorPosition
 {
-    double rotLat = 56.952669;
-    double rotLon = 24.081526;
-    float rotAlt = 25;
+    double rotLat = 57.320352;
+    double rotLon = 25.321597;
+    float rotAlt = 110;
+    //double rotLat = 56.952669;
+    //double rotLon = 24.081526;
+    //float rotAlt = 25;
 };
 rotatorPosition rotatorPostion;
 struct angles
@@ -526,16 +530,24 @@ bool receive_command(RECEIVED_MESSAGE_STRUCTURE &received)
         return true;
     }
 
+    // Check for any messages from ESP-NOW
+    String esp_command = esp_now_wrapper::read();
+    if (esp_command != "")
+    {
+        received.msg = esp_command;
+        received.msg.trim();
+
+        received.checksum_good = true;
+        received.processed = false;
+        received.radio_message = false;
+    }
     return false;
 }
 
 // Sends the provided message using LoRa
-bool send_radio(String msg, bool calculate_checksum)
+bool send_radio(String msg)
 {
-    if (calculate_checksum)
-    {
-        radio.add_checksum(msg);
-    }
+    radio.add_checksum(msg);
     bool status = radio.transmit(msg);
     return status;
 }
@@ -589,6 +601,18 @@ void setup()
             Serial.println("Configuring LoRa failed");
             delay(5000);
         }
+    }
+
+    if (esp_now_wrapper::init(false, 0))
+    {
+        Serial.println("esp_now_wrapper::init() success");
+    }
+    else
+    {
+        Serial.println("esp_now_wrapper::init() failed");
+        while (true)
+        {
+        };
     }
 
     // If required a test message can be transmitted
@@ -664,6 +688,7 @@ void loop()
     }
 
     // Read gps
+
     while (Serial1.available() > 0)
     {
         gps.encode(Serial1.read());
@@ -682,6 +707,7 @@ void loop()
     // Check for any received messages from Radio or PC
     if (receive_command(received))
     {
+        bool update_rotator_angles = false;
         // Print the received message to PC
         if (received.radio_message)
         {
@@ -692,40 +718,40 @@ void loop()
             Serial.print("PC COMMAND | MSG: ");
         }
         Serial.println(received.msg);
-
         String msg = received.msg;
         msg.trim();
         received.msg = msg;
+        Serial.println(received.msg);
 
         if (received.msg == PING_MSG && !received.radio_message)
         {
-            send_radio(PING_MSG, true);
+            send_radio(PING_MSG);
         }
         else if (received.msg == ATKABE_MSG && !received.radio_message)
         {
-            send_radio(ATKABE_MSG, true);
+            send_radio(ATKABE_MSG);
         }
         else if (received.msg == BUZZER_ON_MSG && !received.radio_message)
         {
-            send_radio(BUZZER_ON_MSG, true);
+            send_radio(BUZZER_ON_MSG);
         }
         else if (received.msg == BUZZER_OFF_MSG && !received.radio_message)
         {
-            send_radio(BUZZER_OFF_MSG, true);
+            send_radio(BUZZER_OFF_MSG);
         }
         else if (received.msg == DATA_REQUEST_MSG && !received.radio_message)
         {
-            send_radio(DATA_REQUEST_MSG, true);
+            send_radio(DATA_REQUEST_MSG);
         }
         else if (received.msg == DATA_SEND_ON_MSG && !received.radio_message)
         {
-            send_radio(DATA_SEND_ON_MSG, true);
+            send_radio(DATA_SEND_ON_MSG);
         }
         else if (received.msg == DATA_SEND_OFF_MSG && !received.radio_message)
         {
-            send_radio(DATA_SEND_OFF_MSG, true);
+            send_radio(DATA_SEND_OFF_MSG);
         }
-        else if (received.msg != "" && received.radio_message && received.checksum_good)
+        else if (received.msg.charAt(0) == 'r' && received.radio_message && received.checksum_good)
         {
             String msg = received.msg;
             msg.trim();
@@ -745,30 +771,24 @@ void loop()
             telemetry_data.speed = (values[9]).toFloat();
             telemetry_data.baro_altitude = (values[10]).toFloat();
 
-            position.latitude = telemetry_data.lat;
-            position.longitude = telemetry_data.lng;
-            position.altitude = telemetry_data.gps_altitude;
+            // Balloon position
+            if (telemetry_data.lat != 0 && telemetry_data.lng != 0)
+            {
+                position.latitude = telemetry_data.lat;
+                position.longitude = telemetry_data.lng;
+                position.altitude = telemetry_data.gps_altitude;
+                update_rotator_angles = true;
+            }
 
-            rotatorPostion.rotLat = gps.location.lat();
-            rotatorPostion.rotLon = gps.location.lng();
-            rotatorPostion.rotAlt = gps.altitude.meters();
-
-            Serial.println("ROTATOR GPS: " + String(rotatorPostion.rotLat, 6) + " | " + String(rotatorPostion.rotLon, 6) + " | " + String(rotatorPostion.rotAlt, 2));
-            Serial.println("BALLOON GPS: " + String(position.latitude, 6) + " | " + String(position.longitude, 6) + " | " + String(position.altitude, 2));            
-            
-            AZstep = calculateAzimuth(position.latitude, position.longitude, rotatorPostion.rotLat, rotatorPostion.rotLon, 1);
-            AZstep = shortest_az(previousAZ, AZstep);
-            previousAZ = AZstep;
-            ELstep = calculateElevAngle(position.latitude, position.longitude, position.altitude, rotatorPostion.rotLat, rotatorPostion.rotLon, rotatorPostion.rotAlt, 1);
-            
-            Serial.println("CALCULATED DEGREES - AZIMUTH: " + String(AZstep) + " | ELEVATION: " + String(ELstep));
-            AZstep = AZstep * (SPR * RATIO / 360);
-            ELstep = ELstep * (SPR * RATIO / 360);
+            // Send data to esp-now
+            esp_now_wrapper::send(received.msg);
         }
-        else if (received.msg.charAt(0) != 'B')
+        else if (received.msg.charAt(0) == 'C')
         {
             String msg = received.msg;
             msg.trim();
+            msg.remove(0, 1);
+
             // Make a char array from the string
             int msg_len = msg.length() + 1;
             char char_array[msg_len];
@@ -781,15 +801,79 @@ void loop()
             token = strtok(NULL, ",");
             position.altitude = atof(token);
 
+            if (gps.location.lat() != 0 && gps.location.lng() != 0)
+            {
+                rotatorPostion.rotLat = gps.location.lat();
+                rotatorPostion.rotLon = gps.location.lng();
+                rotatorPostion.rotAlt = gps.altitude.meters();
+            }
+
+            update_rotator_angles = true;
+        }
+        else if (received.msg.charAt(0) == 'A')
+        {
+            String msg = received.msg;
+            msg.trim();
+            msg.remove(0, 1);
+
+            // Make a char array from the string
+            int msg_len = msg.length() + 1;
+            char char_array[msg_len];
+            msg.toCharArray(char_array, msg_len);
+
+            char *token = strtok(char_array, ",");
+            float az = atof(token);
+            token = strtok(NULL, ",");
+            float elev = atof(token);
+
+            Serial.println("REQUESTED DEGREES - AZIMUTH: " + String(AZstep) + " | ELEVATION: " + String(ELstep));
+            AZstep = shortest_az(previousAZ, (int)az);
+            previousAZ = AZstep;
+            AZstep = AZstep * (SPR * RATIO / 360);
+            ELstep = (int)elev * (SPR * RATIO / 360);
+            Serial.println("STEPPER STEPS - AZIMUTH: " + String(AZstep) + " | ELEVATION: " + String(ELstep));
+            
+            update_rotator_angles = false;
+        }
+
+        // Update rotator position            
+        if (gps.location.lat() != 0 && gps.location.lng() != 0)
+        {
             rotatorPostion.rotLat = gps.location.lat();
             rotatorPostion.rotLon = gps.location.lng();
             rotatorPostion.rotAlt = gps.altitude.meters();
+        }
 
+        // If received new ballon coordinates, update rotator angles
+        if (update_rotator_angles)
+        {
             Serial.println("ROTATOR GPS: " + String(rotatorPostion.rotLat, 6) + " | " + String(rotatorPostion.rotLon, 6) + " | " + String(rotatorPostion.rotAlt, 2));
-            Serial.println("BALLOON GPS: " + String(position.latitude, 6) + " | " + String(position.longitude, 6) + " | " + String(position.altitude, 2));            
+            Serial.println("BALLOON GPS: " + String(position.latitude, 6) + " | " + String(position.longitude, 6) + " | " + String(position.altitude, 2));   
 
+            double distanceBetween = haversine(position.latitude, position.longitude, rotatorPostion.rotLat, rotatorPostion.rotLon);
+            Serial.println("DISTANCE BETWEEN: " + String(distanceBetween, 2) + " meters or " + String(distanceBetween/1000.0, 2) + " kilometers");
+            
             AZstep = calculateAzimuth(position.latitude, position.longitude, rotatorPostion.rotLat, rotatorPostion.rotLon, 1);
-            ELstep = calculateElevAngle(position.latitude, position.longitude, position.altitude, rotatorPostion.rotLat, rotatorPostion.rotLon, rotatorPostion.rotAlt, 1);
+            AZstep = shortest_az(previousAZ, AZstep);
+            previousAZ = AZstep;
+            if (distanceBetween > 100)
+            {
+                float fixedHeight = position.altitude - rotatorPostion.rotAlt;
+                if (fixedHeight < 0)
+                {
+                    fixedHeight = 0;
+                }
+                ELstep = calculateElevAngle(position.latitude, position.longitude, fixedHeight, rotatorPostion.rotLat, rotatorPostion.rotLon, 1);
+            }
+            else
+            {
+                ELstep = 0;
+            }
+
+            if (ELstep < 0)
+            {
+                ELstep = 0;
+            }
 
             Serial.println("CALCULATED DEGREES - AZIMUTH: " + String(AZstep) + " | ELEVATION: " + String(ELstep));
             AZstep = AZstep * (SPR * RATIO / 360);
@@ -797,7 +881,5 @@ void loop()
             Serial.println("STEPPER STEPS - AZIMUTH: " + String(AZstep) + " | ELEVATION: " + String(ELstep));
         }
     }
-    /*Read the steps from serial*/
-    // cmd_proc(AZstep, ELstep);
     stepper_move(AZstep, ELstep);
 }
