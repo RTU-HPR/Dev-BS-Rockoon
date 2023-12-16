@@ -7,10 +7,6 @@ int i = 1;
 void setup()
 {
     Serial.begin(115200);
-    while (!Serial)
-    {
-        delay(1);
-    }
     esp_now_wrapper::init(false, 0);
 }
 
