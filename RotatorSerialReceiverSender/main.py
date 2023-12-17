@@ -19,7 +19,7 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 socketio = SocketIO(app)
 
 # Define the serial port and baud rate
-serial_port = "COM21"
+serial_port = "COM14"
 baud_rate = 115200
 thread_running = False
 
@@ -235,7 +235,7 @@ while True:
 
 
 def read_serial_data():
-    global balloon_coordinates, prediction_request, last_api_request_time, prediction_results, m, data_request, ping_request, detach_request
+    global balloon_coordinates, prediction_request, last_api_request_time, prediction_results, m, data_request, ping_request, detach_request, data_send_on_request, data_send_off_request, buzzer_on_request, buzzer_off_request, custom_angle_request, custom_coordinate_request
     while True:
         try:
             print(f"Connecting to {serial_port}")

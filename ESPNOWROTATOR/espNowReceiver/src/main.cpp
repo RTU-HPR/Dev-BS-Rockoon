@@ -4,10 +4,6 @@
 void setup()
 {
     Serial.begin(115200);
-    while (!Serial)
-    {
-        delay(1);
-    }
     esp_now_wrapper::init(true, 0);
 }
 
@@ -24,6 +20,7 @@ void loop()
     if (Serial.available() > 0)
     {
         String msg = Serial.readString();
+        //Serial.println(msg);
         esp_now_wrapper::send(msg);
     }
 }

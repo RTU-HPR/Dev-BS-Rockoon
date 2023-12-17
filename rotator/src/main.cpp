@@ -603,17 +603,7 @@ void setup()
         }
     }
 
-    if (esp_now_wrapper::init(false, 0))
-    {
-        Serial.println("esp_now_wrapper::init() success");
-    }
-    else
-    {
-        Serial.println("esp_now_wrapper::init() failed");
-        while (true)
-        {
-        };
-    }
+    esp_now_wrapper::init(false, 0);
 
     // If required a test message can be transmitted
     // radio.test_transmit();
@@ -715,9 +705,8 @@ void loop()
         }
         else
         {
-            Serial.print("PC COMMAND | MSG: ");
+            Serial.print("COMMAND | MSG: ");
         }
-        Serial.println(received.msg);
         String msg = received.msg;
         msg.trim();
         received.msg = msg;
@@ -780,8 +769,11 @@ void loop()
                 update_rotator_angles = true;
             }
 
+            msg += "," + String(received.rssi, 2) + "," + String(received.snr, 2);
+
             // Send data to esp-now
-            esp_now_wrapper::send(received.msg);
+            esp_now_wrapper::send(msg);
+            delay(10);
         }
         else if (received.msg.charAt(0) == 'C')
         {
