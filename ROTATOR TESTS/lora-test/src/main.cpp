@@ -42,21 +42,27 @@ RadioLib_Wrapper<radio_module>::Radio_Config radio_config{
     .spi_bus = &SPI // SPI bus used by radio
 };
 
+// Create radio object and pass error function if not passed will use serial print
+RadioLib_Wrapper<radio_module> radio = RadioLib_Wrapper<radio_module>(nullptr, 5);
+
 // Ping pong
 bool should_transmit = true;
 int message_index = 1;
 int WAIT_FOR_RECEIVE = 5000;
 unsigned long last_transmit_time = 0;
 
-void start()
+void setup()
 {
+    Serial.begin(115200);
+    while (!Serial)
+    {
+        delay(5); // wait for serial
+    }
     // Configure and begin SPI bus
     radio_config.spi_bus->begin(SPI_SCK, SPI_RX, SPI_TX);
 
-    RadioLib_Wrapper<radio_module> *radio = new RadioLib_Wrapper<radio_module>(nullptr);
-
     // Configure radio module
-    if (!radio->begin(radio_config))
+    if (!radio.begin(radio_config))
     {
         while (true)
         {
@@ -64,50 +70,48 @@ void start()
             delay(5000);
         }
     }
-
     Serial.println("Lora initialized");
     // If required a test message can be transmitted
-    // radio->test_transmit();
+    // radio.test_transmit();
+}
 
-    // ping pong
-    while (true)
+void loop()
+{
+    // Variables to store the received data
+    String msg = "";
+    float rssi = 0;
+    float snr = 0;
+
+    // Check if anything has been received
+    double frquency = 0;
+    if (radio.receive(msg, rssi, snr, frquency))
     {
-        // Variables to store the received data
-        String msg = "";
-        float rssi = 0;
-        float snr = 0;
-
-        // Check if anything has been received
-        double frquency = 0;
-        if (radio->receive(msg, rssi, snr, frquency))
+        // Check if checksum matches
+        if (radio.check_checksum(msg))
         {
-            // Check if checksum matches
-            if (radio->check_checksum(msg))
-            {
-                Serial.println("LoRa received: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
-            }
-            else
-            {
-                Serial.println("LoRa received with checksum fail: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
-            }
-            should_transmit = true;
+            Serial.println("LoRa received: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
         }
-
-        // If nothing has been received in the defined time period, transmit a message
-        if (should_transmit || millis() - last_transmit_time > WAIT_FOR_RECEIVE)
+        else
         {
-            String tx_message = "Ping pong message " + String(message_index);
-            radio->add_checksum(tx_message);
-
-            while (!radio->transmit(tx_message))
-            {
-                delay(5);
-            }
-            Serial.println("msg sent");
-
-            message_index++;
-            // should_transmit = false;
-            last_transmit_time = millis();
+            Serial.println("LoRa received with checksum fail: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
         }
+        should_transmit = true;
+    }
+
+    // If nothing has been received in the defined time period, transmit a message
+    if (should_transmit || millis() - last_transmit_time > WAIT_FOR_RECEIVE)
+    {
+        String tx_message = "Ping pong message " + String(message_index);
+        radio.add_checksum(tx_message);
+
+        while (!radio.transmit(tx_message))
+        {
+            delay(5);
+        }
+        Serial.println("msg sent");
+
+        message_index++;
+        // should_transmit = false;
+        last_transmit_time = millis();
     }
 }
