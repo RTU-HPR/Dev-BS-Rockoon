@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem name="myproject" xmlns="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+	<TelemetryMetaData>
+		<ParameterTypeSet>
+			<AggregateParameterType name="CCSDS_Packet_ID_Type">
+				<MemberList>
+					<Member name="Version" typeRef="CCSDS_Version_Type" />
+					<Member name="Type" typeRef="CCSDS_Type_Type" />
+					<Member name="SecHdrFlag" typeRef="CCSDS_Sec_Hdr_Flag_Type" />
+					<Member name="APID" typeRef="CCSDS_APID_Type" />
+				</MemberList>
+			</AggregateParameterType>
+			<IntegerParameterType name="CCSDS_Version_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="3" />
+			</IntegerParameterType>
+			<BooleanParameterType name="CCSDS_Type_Type" zeroStringValue="TM" oneStringValue="TC">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="1" />
+			</BooleanParameterType>
+			<BooleanParameterType name="CCSDS_Sec_Hdr_Flag_Type" zeroStringValue="NotPresent" oneStringValue="Present">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="1" />
+			</BooleanParameterType>
+			<IntegerParameterType name="CCSDS_APID_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="11" />
+			</IntegerParameterType>
+			<AggregateParameterType name="CCSDS_Packet_Sequence_Type">
+				<MemberList>
+					<Member name="GroupFlags" typeRef="CCSDS_Group_Flags_Type" />
+					<Member name="Count" typeRef="CCSDS_Source_Sequence_Count_Type" />
+				</MemberList>
+			</AggregateParameterType>
+			<EnumeratedParameterType name="CCSDS_Group_Flags_Type">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="2" />
+				<EnumerationList>
+					<Enumeration value="0" label="Continuation" />
+					<Enumeration value="1" label="First" />
+					<Enumeration value="2" label="Last" />
+					<Enumeration value="3" label="Standalone" />
+				</EnumerationList>
+			</EnumeratedParameterType>
+			<IntegerParameterType name="CCSDS_Source_Sequence_Count_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="14" />
+			</IntegerParameterType>
+			<IntegerParameterType name="CCSDS_Packet_Length_Type" signed="false" initialValue="0">
+				<UnitSet>
+					<Unit description="Size">Octets</Unit>
+				</UnitSet>
+				<IntegerDataEncoding sizeInBits="16" />
+			</IntegerParameterType>
+
+			<IntegerParameterType name="uint32_t" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding encoding="unsigned" sizeInBits="32" />
+			</IntegerParameterType>
+			<FloatParameterType name="float_t" signed="true">
+				<UnitSet />
+				<FloatDataEncoding sizeInBits="32" />
+			</FloatParameterType>
+			<BooleanParameterType name="bool_t">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="8" />
+			</BooleanParameterType>
+      <StringParameterType name="fixed_string_64">
+        <StringDataEncoding encoding="UTF-8">
+          <SizeInBits>
+              <Fixed>
+                <FixedValue>64</FixedValue>
+              </Fixed>
+          </SizeInBits>
+        </StringDataEncoding>
+      </StringParameterType>
+		</ParameterTypeSet>
+
+
+		<ParameterSet>
+			<Parameter name="CCSDS_Packet_ID" parameterTypeRef="CCSDS_Packet_ID_Type" />
+			<Parameter name="CCSDS_Packet_Sequence" parameterTypeRef="CCSDS_Packet_Sequence_Type" />
+			<Parameter name="CCSDS_Packet_Length" parameterTypeRef="CCSDS_Packet_Length_Type" />
+      <Parameter name="Telemetry_Packet_ID" parameterTypeRef="uint32_t"/>
+      <Parameter name="Telemetry_Time" parameterTypeRef="fixed_string_64" />
+			<Parameter name="GPS_Latitude" parameterTypeRef="float_t" />
+			<Parameter name="GPS_Longitude" parameterTypeRef="float_t" />
+			<Parameter name="GPS_Altitude" parameterTypeRef="float_t" />
+      <Parameter name="Outside_Temperature" parameterTypeRef="float_t" />
+      <Parameter name="GPS_Satellites" parameterTypeRef="uint32_t" />
+      <Parameter name="Outside_Pressure" parameterTypeRef="uint32_t" />
+      <Parameter name="GPS_Speed" parameterTypeRef="float_t" />
+      <Parameter name="Baro_Altitude" parameterTypeRef="float_t" />
+      <Parameter name="Telemetry_Time_On" parameterTypeRef="uint32_t" />
+
+      <Parameter name="Status_Packet_ID" parameterTypeRef="uint32_t" />
+      <Parameter name="Status_Time_On" parameterTypeRef="uint32_t" />      
+      <Parameter name="Status_Time" parameterTypeRef="fixed_string_64" />
+
+      <Parameter name="Info_PacketID" parameterTypeRef="uint32_t" />
+      <Parameter name="Info_Time_On" parameterTypeRef="uint32_t" />      
+      <Parameter name="Info_Time" parameterTypeRef="fixed_string_64" />
+
+      <Parameter name="Error_PacketID" parameterTypeRef="uint32_t" />
+      <Parameter name="Error_Time_On" parameterTypeRef="uint32_t" />      
+      <Parameter name="Error_Time" parameterTypeRef="fixed_string_64" />
+		</ParameterSet>
+
+
+		<ContainerSet>
+			<SequenceContainer abstract="true" name="CCSDSPacket">
+				<EntryList>
+					<ParameterRefEntry parameterRef="CCSDS_Packet_ID" />
+					<ParameterRefEntry parameterRef="CCSDS_Packet_Sequence" />
+					<ParameterRefEntry parameterRef="CCSDS_Packet_Length" />
+				</EntryList>
+			</SequenceContainer>
+
+			<SequenceContainer name="TelemetryPacket">
+				<EntryList />
+				<BaseContainer containerRef="CCSDSPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="0" parameterRef="CCSDS_Packet_ID/Version" />
+							<Comparison value="TM" parameterRef="CCSDS_Packet_ID/Type" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+			<SequenceContainer name="PayloadTelemetry">
+        <EntryList>
+            <ParameterRefEntry parameterRef="Telemetry_Packet_ID" />
+            <ParameterRefEntry parameterRef="Telemetry_Time" />
+            <ParameterRefEntry parameterRef="GPS_Latitude" />
+            <ParameterRefEntry parameterRef="GPS_Longitude" />
+            <ParameterRefEntry parameterRef="GPS_Altitude" />
+            <ParameterRefEntry parameterRef="Outside_Temperature" />
+            <ParameterRefEntry parameterRef="GPS_Satellites" />
+            <ParameterRefEntry parameterRef="Outside_Pressure" />
+            <ParameterRefEntry parameterRef="GPS_Speed" />
+            <ParameterRefEntry parameterRef="Baro_Altitude" />
+            <ParameterRefEntry parameterRef="Telemetry_Time_On" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="100" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+      <SequenceContainer name="PayloadStatus">
+        <EntryList>
+            <ParameterRefEntry parameterRef="Status_Packet_ID" />
+            <ParameterRefEntry parameterRef="Status_Time_On" />
+            <ParameterRefEntry parameterRef="Status_Time" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="101" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+		</ContainerSet>
+	</TelemetryMetaData>
+
+
+	<CommandMetaData>
+		<ArgumentTypeSet>
+			<IntegerArgumentType name="CCSDS_Version_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="3" />
+			</IntegerArgumentType>
+			<BooleanArgumentType name="CCSDS_Type_Type" zeroStringValue="TM" oneStringValue="TC">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="1" />
+			</BooleanArgumentType>
+			<BooleanArgumentType name="CCSDS_Sec_Hdr_Flag_Type" zeroStringValue="NotPresent" oneStringValue="Present">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="1" />
+			</BooleanArgumentType>
+			<IntegerArgumentType name="CCSDS_APID_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="11" />
+			</IntegerArgumentType>
+			<EnumeratedArgumentType name="CCSDS_Group_Flags_Type">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="2" />
+				<EnumerationList>
+					<Enumeration value="0" label="Continuation" />
+					<Enumeration value="1" label="First" />
+					<Enumeration value="2" label="Last" />
+					<Enumeration value="3" label="Standalone" />
+				</EnumerationList>
+			</EnumeratedArgumentType>
+			<IntegerArgumentType name="Packet_ID_Type" signed="false">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="16" />
+			</IntegerArgumentType>
+		</ArgumentTypeSet>
+
+
+		<MetaCommandSet>
+			<MetaCommand name="CCSDSPacket" abstract="true">
+				<ArgumentList>
+					<Argument argumentTypeRef="CCSDS_Version_Type" name="CCSDS_Version" />
+					<Argument argumentTypeRef="CCSDS_Type_Type" name="CCSDS_Type" />
+					<Argument argumentTypeRef="CCSDS_Sec_Hdr_Flag_Type" name="CCSDS_Sec_Hdr_Flag" />
+					<Argument argumentTypeRef="CCSDS_APID_Type" name="CCSDS_APID" />
+					<Argument argumentTypeRef="CCSDS_Group_Flags_Type" name="CCSDS_Group_Flags" />
+				</ArgumentList>
+				<CommandContainer name="CCSDSPacket">
+					<EntryList>
+						<ArgumentRefEntry argumentRef="CCSDS_Version" />
+						<ArgumentRefEntry argumentRef="CCSDS_Type" />
+						<ArgumentRefEntry argumentRef="CCSDS_Sec_Hdr_Flag" />
+						<ArgumentRefEntry argumentRef="CCSDS_APID" />
+						<ArgumentRefEntry argumentRef="CCSDS_Group_Flags" />
+						<!-- Final value is set by post-processor after the command is submitted. -->
+						<FixedValueEntry name="CCSDS_Source_Sequence_Count" binaryValue="0000" sizeInBits="14" />
+						<!-- Final value is set by post-processor after the command is submitted. -->
+						<FixedValueEntry name="CCSDS_Packet_Length" binaryValue="0000" sizeInBits="16" />
+					</EntryList>
+				</CommandContainer>
+			</MetaCommand>
+			<MetaCommand name="PayloadPacket" abstract="true">
+				<BaseMetaCommand metaCommandRef="CCSDSPacket">
+					<ArgumentAssignmentList>
+						<ArgumentAssignment argumentName="CCSDS_Version" argumentValue="0" />
+						<ArgumentAssignment argumentName="CCSDS_Type" argumentValue="TC" />
+						<ArgumentAssignment argumentName="CCSDS_Sec_Hdr_Flag" argumentValue="NotPresent" />
+						<ArgumentAssignment argumentName="CCSDS_APID" argumentValue="110" />
+						<ArgumentAssignment argumentName="CCSDS_Group_Flags" argumentValue="Standalone" />
+					</ArgumentAssignmentList>
+				</BaseMetaCommand>
+				<ArgumentList>
+					<Argument argumentTypeRef="Packet_ID_Type" name="Packet_ID" />
+				</ArgumentList>
+				<CommandContainer name="PayloadPacket">
+					<EntryList>
+						<ArgumentRefEntry argumentRef="Packet_ID" />
+					</EntryList>
+					<BaseContainer containerRef="CCSDSPacket" />
+				</CommandContainer>
+			</MetaCommand>
+			<MetaCommand name="Status">
+				<BaseMetaCommand metaCommandRef="PayloadPacket">
+					<ArgumentAssignmentList>
+						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1000" />
+					</ArgumentAssignmentList>
+				</BaseMetaCommand>
+				<CommandContainer name="Status">
+					<EntryList />
+					<BaseContainer containerRef="PayloadPacket" />
+				</CommandContainer>
+				<DefaultSignificance consequenceLevel="normal" />
+			</MetaCommand>
+		</MetaCommandSet>
+	</CommandMetaData>
+</SpaceSystem>
