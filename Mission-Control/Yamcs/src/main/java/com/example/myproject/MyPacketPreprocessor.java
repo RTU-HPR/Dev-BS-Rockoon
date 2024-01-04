@@ -1,4 +1,4 @@
-package com.example.myproject;
+package com.example.basestation;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
