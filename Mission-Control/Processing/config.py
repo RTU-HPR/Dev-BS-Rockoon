@@ -23,15 +23,72 @@ REQUEST_HEADERS = {
   "bfc": {"status": "rtu_hpr_bfc_status_request",
           "data": "rtu_hpr_bfc_data_request",
   },
-  "software": {"target_pfc": "rtu_hpr_rotator_target_pfc_request",
-               "target_bfc": "rtu_hpr_rotator_target_bfc_request",
-               "rotator_auto": "rtu_hpr_rotator_auto_request",
-               "rotator_auto_rotator_position": "rtu_hpr_rotator_auto_rotator_position_request",
-               "rotator_manual_rotator_position": "rtu_hpr_rotator_manual_rotator_position_request",
-               "rotator_manual_angles": "rtu_hpr_rotator_manual_angles_request",
-               "rotator_manual_target_coordinates": "rtu_hpr_rotator_manual_coordinates_request",
+  "rotator": {"target_pfc": "rtu_hpr_rotator_target_pfc_request",
+              "target_bfc": "rtu_hpr_rotator_target_bfc_request",
+              "rotator_auto": "rtu_hpr_rotator_auto_request",
+              "rotator_auto_rotator_position": "rtu_hpr_rotator_auto_rotator_position_request",
+              "rotator_manual_rotator_position": "rtu_hpr_rotator_manual_rotator_position_request",
+              "rotator_manual_angles": "rtu_hpr_rotator_manual_angles_request",
+              "rotator_manual_target_coordinates": "rtu_hpr_rotator_manual_coordinates_request",
   },
 }
+
+# APID can be from 0 to 255
+# Telemetry package apids
+APID_TO_TYPE = {
+  # Rotator
+  50: "rotator_position",
+  # PFC
+  100: "pfc_essential",
+  101: "pfc_full",
+  102: "pfc_info",
+  103: "pfc_error",
+  104: "pfc_format",
+  105: "pfc_ejection_1",
+  106: "pfc_ejection_2",
+  # BFC
+  200: "bfc_essential",
+  201: "bfc_full",
+  202: "bfc_info",
+  203: "bfc_error",
+  204: "bfc_format",
+  205: "bfc_rwc_mode",
+  206: "bfc_ejection_1",
+  207: "bfc_ejection_2",  
+}
+
+# All telecommands have the same APID, but have different packet ids
+TELECOMMAND_APID = {
+  "pfc": 10,
+  "bfc": 20,
+  "rotator": 30
+}
+
+# Command packet ids
+PACKETID_TO_TYPE = {
+  # PFC
+  1000: "pfc_complete_data_request",
+  1001: "pfc_get_info_error",
+  1002: "pfc_format_storage_request", 
+  1003: "pfc_heater_set_mode_request",
+  1004: "pfc_ejection_request",
+  # BFC
+  2000: "bfc_complete_data_request",
+  2001: "bfc_get_info_error",
+  2002: "bfc_format_storage_request",
+  2003: "bfc_rwc_set_mode_request",
+  2004: "bfc_ejection_request",
+  # Rotator
+  3000: "rotator_target_pfc_request",
+  3001: "rotator_target_bfc_request",
+  3002: "rotator_auto_tracking_request",
+  3003: "rotator_auto_rotator_position_request",
+  3004: "rotator_manual_rotator_position_request",
+  3005: "rotator_manual_angles_request",
+  3006: "rotator_manual_target_coordinates_request",
+}
+
+
 
 HEADER_TO_APID = {
   # PFC
@@ -69,12 +126,6 @@ PACKETID_TO_HEADER = {
   3006: REQUEST_HEADERS["software"]["rotator_manual_target_coordinates"],
 }
 
-# All telecommands have the same APID, but have different packet ids
-TELECOMMAND_APID = {
-  "pfc": 1000,
-  "bfc": 1001,
-  "software": 1002
-}
 
 # Message structures
 REQUIRED_MESSAGE_FIELDS = ["header", "packet_id", "time"]
