@@ -47,8 +47,20 @@ class ThreadManager:
     thread.start()
     self.active_threads.append(thread)
   
-  def start_router_thread(self):
-    thread = Thread(target=self.router.send_command_to_transceiver, name="Router")
+  def start_command_to_transceiver_thread(self):
+    thread = Thread(target=self.router.send_command_to_transceiver, name="Command Sender")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
+    
+  def start_rotator_command_to_transceiver_thread(self):
+    thread = Thread(target=self.router.send_rotator_command_to_transceiver, name="Rotator Command Sender")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
+    
+  def start_rotator_data_update_thread(self):
+    thread = Thread(target=self.router.update_rotator_data, name="Rotator Data Updater")
     thread.daemon = True
     thread.start()
     self.active_threads.append(thread)

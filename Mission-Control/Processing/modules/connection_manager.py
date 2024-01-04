@@ -58,7 +58,7 @@ class ConnectionManager:
       try:
         message, addr = self.transceiver_tm_socket.recvfrom(4096)
         message = message.decode("ascii")
-        self.received_messages.put(("transceiver", message))
+        self.received_messages.put(message)
         
       except Exception as e:
         print(f"An error occurred while receiving from transceiver: {e}")    
@@ -80,7 +80,7 @@ class ConnectionManager:
       try:
         packet, addr = self.yamcs_tc_socket.recvfrom(4096)
         packet = bytearray(packet)
-        self.received_messages.put(("yamcs", packet))
+        self.received_messages.put(packet)
         
       except Exception as e:
         print(f"An error occurred while receiving from YAMCS: {e}")
