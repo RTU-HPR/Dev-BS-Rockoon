@@ -1,5 +1,5 @@
-from struct import pack
-from time import localtime
+from struct import pack, unpack
+import time
 import queue
 
 from modules.connection_manager import ConnectionManager 
@@ -9,36 +9,26 @@ class PacketProcessor:
   def __init__(self, 
                connection_manager: ConnectionManager,
                rotator: Rotator,
-               receive_headers: dict,
-               request_headers: dict,
-               header_to_apid: dict,
-               packetid_to_header: dict,
+               apid_to_type: dict,
                telecommand_apid: dict,
-               telemetry_message_structure: dict,
-               status_message_structure: list,
-               info_message_structure: list,
-               error_message_structure: list) -> None:
+               packetid_to_type: dict,
+               telemetry_message_structure) -> None:
     # Objects
     self.connection_manager = connection_manager
     self.rotator = rotator
     
     # Message information
-    self.receive_headers = receive_headers
-    self.request_headers = request_headers
-    self.header_to_apid = header_to_apid
-    self.packetid_to_header = packetid_to_header
+    self.apid_to_type = apid_to_type
     self.telecommand_apid = telecommand_apid
+    self.packetid_to_type = packetid_to_type
     
     # Message structures
     self.telemetry_message_structure = telemetry_message_structure
-    self.status_message_structure = status_message_structure
-    self.info_message_structure = info_message_structure
-    self.error_message_structure = error_message_structure
     
     # Telemetry
-    self.pfc_telemetry = {"gps_latitude": 0, "gps_longitude": 0, "gps_altitude": 0}
-    self.bfc_telemetry = {"gps_latitude": 0, "gps_longitude": 0, "gps_altitude": 0}
-    self.rotator_telemetry = {"latitude": 0, "longitude": 0, "altitude": 0}
+    self.pfc_telemetry = {"gps_latitude": 0.0, "gps_longitude": 0.0, "gps_altitude": 0.0}
+    self.bfc_telemetry = {"gps_latitude": 0.0, "gps_longitude": 0.0, "gps_altitude": 0.0}
+    self.rotator_telemetry = {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0}
     
     # Queues
     self.processed_packets = queue.Queue()
@@ -56,11 +46,10 @@ class PacketProcessor:
             raise Exception("Invalid message")
           
           # Split the message into parts
-          ccsds, apid, sequence_count, is_telemetry_message = converted
+          ccsds, apid, sequence_count = converted
           
-          # If the message is a telemetry message, update the telemetry values from the original message
-          if is_telemetry_message:
-            self.__update_values_from_message(packet)
+          # If able update the telemetry values from the message
+          self.__update_values_from_message(packet)
           
           # Queue the packet for sending to YAMCS
           self.processed_packets.put(ccsds)
@@ -72,15 +61,14 @@ class PacketProcessor:
             raise Exception("Invalid ccsds packet")
 
           # Split the message into parts
-          command, header, data, apid = converted
+          command, data, packet_id = converted
           
           # Check if the command is meant to change something in this program
-          if apid == self.telecommand_apid["software"]:
-            self.__process_software_command(header, data)
+          self.__process_rotator_command(packet_id, data)
             
           # Else queue the packet for sending to transceiver
-          else:
-            self.processed_packets.put(command)
+          self.processed_packets.put(command)
+
         else:
           raise Exception(f"Invalid packet type: {type(packet)}")
         
@@ -91,6 +79,15 @@ class PacketProcessor:
         self.connection_manager.received_messages.task_done()
         print(f"An error occurred while processing packet: {e}")
     
+  def __isfloat(self, value: str) -> bool:
+    """
+    Checks if a string is a float.
+    """
+    try:
+      float(value)
+      return True
+    except ValueError:
+      return False
   
   def __convert_message_to_ccsds(self, message: str):
     """
@@ -104,8 +101,8 @@ class PacketProcessor:
     # Split the message into parts and get the apid and sequence count
     try:
       message_split = message.split(",")
-      apid = self.header_to_apid[message_split[0]]
-      sequence_count = int(message_split[1])
+      apid = int(message_split[1])
+      sequence_count = int(message_split[2])
     except Exception as e:
       print(f"Error spliting message: {e}. Full message: {message}")
       return None
@@ -113,43 +110,26 @@ class PacketProcessor:
     # Convert each value string to corresponding data type and convert to bytearray
     packet_data = bytearray()
     
-    # Process the time string the same for all messages
-    # Make sure that the time string is in HH:MM:SS format
-    time_parts = message_split[2].split(":")
-    time_parts = [part.zfill(2) for part in time_parts]
-    time_string_padded = ":".join(time_parts)
-    byte = bytearray(time_string_padded.encode("utf-8"))
-    packet_data += byte
-    
-    # Flags
-    is_telemetry_message = False
-    
-    # Telemetry/rotator message data fields will have integers/floats, while status/info/error messages will only have strings
-    if "telemetry" in message_split[0] or "rotator" in message_split[0]:
-      is_telemetry_message = True
-      for value in message_split[3:]:
-        try:
-          # Integer
-          if value.isdigit():    
-            byte = bytearray(pack("i", int(value)))
-            byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
-            packet_data += byte
-          # Float
-          elif "." in value:
-            byte = bytearray(pack("f", float(value)))
-            byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
-            packet_data += byte
-          else:
-            raise Exception("Invalid value in telemetry message")
-        except Exception as e:
-          print(f"Error converting value {value} to bytearray: {e}. Full message: {message}")
-          return None
-    else:
+    for value in message_split[3:]:
       try:
-        byte = bytearray(message[3].encode("utf-8"))
-        packet_data += byte
+        # Integer
+        if value.isdigit():    
+          byte = bytearray(pack("i", int(value)))
+          byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
+          packet_data += byte
+        # Float
+        elif self.__isfloat(value):
+          byte = bytearray(pack("f", float(value)))
+          byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
+          packet_data += byte
+        # String
+        else:
+          # Add a newline character as it is string termination character
+          value += "\n"
+          byte = bytearray(value.encode("utf-8"))
+          packet_data += byte
       except Exception as e:
-        print(f"Error converting value {message[3]} to bytearray: {e}. Full message: {message}")
+        print(f"Error converting value {value} to bytearray: {e}. Full message: {message}")
         return None
       
     # Create full packet
@@ -160,9 +140,54 @@ class PacketProcessor:
       print(f"Error creating primary header: {e}. Full message: {message}")
       return None
     
-    return (packet, apid, sequence_count, is_telemetry_message)  
+    return (packet, apid, sequence_count)
   
+  def __binary_to_float(self, binary):
+    return unpack('!f',pack('!I', int(binary, 2)))[0]
   
+  def __convert_packet_data_to_string(self,packet_id, packet_data):    
+    # Heater set mode
+    if packet_id == 1003:
+      # Read 8 bits to get the heater mode
+      heater_mode = str(int(packet_data[:8], 2))
+      return heater_mode
+    
+    # PFC and BFC Ejection
+    elif packet_id == 1004 or packet_id == 2004:
+      # Read 8 bits to get the ejection channel
+      heater_mode = str(int(packet_data[:8], 2))
+      return heater_mode
+    
+    # RWC set mode
+    elif packet_id == 2003:
+      # Read 8 bits to get the rwc mode
+      rwc_mode = str(int(packet_data[:8], 2))
+      # Read next 32 bits to get the rwc direction
+      rwc_direction_data = packet_data[8:40]
+      rwc_direction = self.__binary_to_float(rwc_direction_data)
+      return f"{rwc_mode},{rwc_direction}"
+    
+    # Manual rotator position and manual target coordinates
+    elif packet_id == 3004 or packet_id == 3006:
+      # Read 32 bits to get the latitude
+      latitude = str(self.__binary_to_float(packet_data[:32]))
+      # Read next 32 bits to get the longitude
+      longitude = str(self.__binary_to_float(packet_data[32:64]))
+      # Read next 32 bits to get the altitude
+      altitude = str(self.__binary_to_float(packet_data[64:96]))
+      return f"{latitude},{longitude},{altitude}"
+      
+    # Manual angles
+    elif packet_id == 3005:
+      # Read 32 bits to get the azimuth
+      azimuth = str(self.__binary_to_float(packet_data[:32]))
+      # Read next 32 bits to get the elevation
+      elevation = str(self.__binary_to_float(packet_data[32:64]))
+      return f"{azimuth},{elevation}"
+    
+    else:
+      return ""
+    
   def __convert_ccsds_to_message(self, packet: bytearray):
     """
     Converts a CCSDS packet to a message string.
@@ -175,7 +200,6 @@ class PacketProcessor:
       # Get the binary array
       ccsds_binary = bin(int(packet_hex, 16))[2:].zfill(len(packet_hex) * 4)
 
-      # We only need the apid, packet id and packet data, but we get the all of the fields, just in case we need them later
       # Secondary header field
       packet_version_number = ccsds_binary[:3]      
       
@@ -192,58 +216,76 @@ class PacketProcessor:
       packet_data_length = ccsds_binary[32:48]
       packet_id = ccsds_binary[48:64]
       packet_data = ccsds_binary[64:]
-
+      
       # Convert to usable data types
       apid = int(apid, 2)
       packet_id = int(packet_id, 2)
       packet_sequence_count = int(packet_sequence_count, 2)
 
-      # Get the message header from the packet id
-      message_header = self.packetid_to_header[packet_id]
+      # Get data values from packet
+      data_string = self.__convert_packet_data_to_string(packet_id, packet_data)
 
-      # Get current time in HH:MM:SS format
-      current_time = ":".join([str(x).zfill(2) for x in list(localtime())[3:6]])      
+      # Get current time in epoch format
+      current_time = int(time.mktime(time.localtime()))
       
-      # We could also parse and add the packet data to message, but we don't need it for now
-      data = packet_data
       # Create the message
-      message = f"{message_header},{packet_sequence_count},{current_time}"
-      if data != "":
-        message += f",{data}"
+      if apid == 10:
+        message = f"rtu_pfc,{packet_id},{packet_sequence_count},{current_time}"
+      elif apid == 20:
+        message = f"rtu_bfc,{packet_id},{packet_sequence_count},{current_time}"
+      elif apid == 30:
+        message = f"rtu_rotator"
+      else:
+        print(f"Invalid apid: {apid}")
+        raise Exception("Invalid apid")
       
-      return (message, message_header, data, apid) 
+      if data_string != "":
+        message += f",{data_string}"
+        
+      message += "~"
+      
+      return (message, data_string, packet_id) 
     
     except Exception as e:
       print(f"Error converting packet to message: {e}. Full packet: {packet}")
       return None
   
   
-  def __process_software_command(self, header: str, data: str) -> None:
+  def __process_rotator_command(self, packet_id: int, data: str) -> None:
     try:
-      # Rotator control
-      if header == self.request_headers["software"]["target_pfc"] or header == self.request_headers["software"]["target_bfc"]:
-        self.rotator.set_target(data)
+      # Set target PFC
+      if packet_id == 3000:
+        self.rotator.set_target("pfc")
         
-      elif header == self.request_headers["software"]["rotator_auto"]:
+      # Set target BFC
+      elif packet_id == 3001:
+        self.rotator.set_target("bfc")    
+            
+      # Set rotator to auto tracking mode
+      elif packet_id == 3002:
         self.rotator.set_control_mode("auto")
         
-      elif header == self.request_headers["software"]["rotator_auto_rotator_position"]:
+      # Set rotator to auto rotator position mode
+      elif packet_id == 3003:
         self.rotator.set_rotator_position_mode("auto")
         
-      elif header == self.request_headers["software"]["rotator_manual_rotator_position"]:
+      # Set rotator to manual rotator position mode
+      elif packet_id == 3004:
         latitude, longitude, altitude = data.split(",")
         self.rotator.set_manual_rotator_position(latitude, longitude, altitude)
-        
-      elif header == self.request_headers["software"]["rotator_manual_angles"]:
+      
+      # Set rotator to manual angles mode
+      elif packet_id == 3005:
         azimuth, elevation = data.split(",")
         self.rotator.set_manual_angles(azimuth, elevation)
         
-      elif header == self.request_headers["software"]["rotator_manual_target_coordinates"]:
+      # Set rotator to manual target coordinates mode
+      elif packet_id == 3006: 
         latitude, longitude, altitude = data.split(",")
         self.rotator.set_manual_target_position(latitude, longitude, altitude)
       
     except Exception as e:
-      print(f"Error processing software command: {e}. Full command: {header}, {data}")
+      print(f"Error processing rotator command: {e}. Full command: {packet_id}, {data}")
     
   
   def __create_primary_header(self, apid: int, sequence_count: int, data_length: int) -> bytearray:
@@ -288,39 +330,42 @@ class PacketProcessor:
     try:
       # Create a dictonary with keys from the telemetry_message_structure and values from the message
       message_split = message.split(",")
+      apid = int(message_split[1])
+      
       message_dict = {}
       
-      if message_split[0] == self.receive_headers["pfc"]["telemetry"]:
+      # PFC essential telemetry
+      if apid == 100:
         for key, value in zip(self.telemetry_message_structure["pfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
-          elif "." in value:
+          elif self.__isfloat(value):
             message_dict[key] = float(value)
           else:
             message_dict[key] = value
         self.pfc_telemetry = message_dict
       
-      elif message_split[0] == self.receive_headers["bfc"]["telemetry"]:
+      # BFC essential telemetry
+      elif apid == 200:
         for key, value in zip(self.telemetry_message_structure["bfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
-          elif "." in value:
+          elif self.__isfloat(value):
             message_dict[key] = float(value)
           else:
             message_dict[key] = value
         self.bfc_telemetry = message_dict
       
-      elif message_split[0] == self.receive_headers["rotator"]["position"]:
+      # Rotator position telemetry
+      elif apid == 50:
         for key, value in zip(self.telemetry_message_structure["rotator"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
-          elif "." in value:
+          elif self.__isfloat(value):
             message_dict[key] = float(value)
           else:
             message_dict[key] = value
         self.rotator_telemetry = message_dict
-      else:
-        raise Exception("Invalid message header")
     except Exception as e:
       print(f"Error converting message to dictonary: {e}. Full message: {message}")
     

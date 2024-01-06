@@ -59,6 +59,7 @@ PACKETID_TO_TYPE = {
 # Message structures
 TELEMETRY_MESSAGE_STRUCTURE = {
   "pfc": ["callsign",
+          "apid",
           "index",
           "gps_latitude",
           "gps_longitude",
@@ -72,6 +73,7 @@ TELEMETRY_MESSAGE_STRUCTURE = {
           "snr"
           ],
   "bfc": ["callsign",
+          "apid",
           "index",
           "gps_latitude",
           "gps_longitude",
@@ -85,11 +87,11 @@ TELEMETRY_MESSAGE_STRUCTURE = {
           "snr"
           ],
   "rotator": ["callsign", 
-              "index",
               "latitude",
               "longitude",
               "altitude"]
 }
+
 
 # CONNECTIONS
 YAMCS_TM_ADDRESS = ('localhost', 10015)

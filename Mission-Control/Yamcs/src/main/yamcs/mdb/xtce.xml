@@ -124,14 +124,13 @@
       <Parameter name="PFC_Info_Error_Message" parameterTypeRef="dynamic_string_1024" />
 
       <!-- Format storage -->
-      <Parameter name="PFC_Format_Storage_Status" parameterTypeRef="bool_t" />
+      <Parameter name="PFC_Format_Storage_Command_Excecuted" parameterTypeRef="bool_t" />
 
       <!-- Heater -->
-      <Parameter name="PFC_Heater_Status" parameterTypeRef="bool_t" />
+      <Parameter name="PFC_Heater_Command_Excecuted" parameterTypeRef="bool_t" />
 
       <!-- Ejection charge -->
-      <Parameter name="PFC_Ejection_Charge_1_Status" parameterTypeRef="bool_t" />
-      <Parameter name="PFC_Ejection_Charge_2_Status" parameterTypeRef="bool_t" />
+      <Parameter name="PFC_Ejection_Charge_Command_Excecuted" parameterTypeRef="bool_t" />
 
       <!-- Radio -->
       <Parameter name="PFC_Last_Rssi" parameterTypeRef="float_t" />
@@ -162,14 +161,13 @@
       <Parameter name="BFC_Info_Error_Message" parameterTypeRef="dynamic_string_1024" />
 
       <!-- Format storage -->
-      <Parameter name="BFC_Format_Storage_Status" parameterTypeRef="bool_t" />
+      <Parameter name="BFC_Format_Storage_Command_Excecuted" parameterTypeRef="bool_t" />
 
       <!-- RWC Mode -->
       <Parameter name="BFC_RWC_Mode_Command_Excecuted" parameterTypeRef="uint32_t" />
 
       <!-- Ejection charge -->
-      <Parameter name="BFC_Ejection_Charge_1_Status" parameterTypeRef="bool_t" />
-      <Parameter name="BFC_Ejection_Charge_2_Status" parameterTypeRef="bool_t" />
+      <Parameter name="BFC_Ejection_Charge_Command_Excecuted" parameterTypeRef="bool_t" />
 
       <!-- Radio -->
       <Parameter name="BFC_Last_Rssi" parameterTypeRef="float_t" />
@@ -278,7 +276,24 @@
       <!-- Format -->
 			<SequenceContainer name="PayloadFormatPacket">
         <EntryList>
-          <ParameterRefEntry parameterRef="PFC_Format_Storage_Status" />
+          <ParameterRefEntry parameterRef="PFC_Format_Storage_Command_Excecuted" />
+          <ParameterRefEntry parameterRef="PFC_Last_Rssi" />
+          <ParameterRefEntry parameterRef="PFC_Last_Snr" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="103" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+      <!-- Heater -->
+      <SequenceContainer name="PayloadHeaterReceivedPacket">
+        <EntryList>
+          <ParameterRefEntry parameterRef="PFC_Heater_Command_Excecuted" />
           <ParameterRefEntry parameterRef="PFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="PFC_Last_Snr" />
         </EntryList>
@@ -292,10 +307,10 @@
 				</BaseContainer>
 			</SequenceContainer>
 
-      <!-- Ejection 1 -->
-			<SequenceContainer name="PayloadEjectionCharge1Packet">
+      <!-- Ejection -->
+			<SequenceContainer name="PayloadEjectionChargeReceivedPacket">
         <EntryList>
-          <ParameterRefEntry parameterRef="PFC_Ejection_Charge_1_Status" />
+          <ParameterRefEntry parameterRef="PFC_Ejection_Charge_Command_Excecuted" />
           <ParameterRefEntry parameterRef="PFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="PFC_Last_Snr" />
         </EntryList>
@@ -304,23 +319,6 @@
 						<ComparisonList>
 							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
 							<Comparison value="105" parameterRef="CCSDS_Packet_ID/APID" />
-						</ComparisonList>
-					</RestrictionCriteria>
-				</BaseContainer>
-			</SequenceContainer>
-
-      <!-- Ejection 2 -->
-			<SequenceContainer name="PayloadEjectionCharge2Packet">
-        <EntryList>
-          <ParameterRefEntry parameterRef="PFC_Ejection_Charge_2_Status" />
-          <ParameterRefEntry parameterRef="PFC_Last_Rssi" />
-          <ParameterRefEntry parameterRef="PFC_Last_Snr" />
-        </EntryList>
-				<BaseContainer containerRef="TelemetryPacket">
-					<RestrictionCriteria>
-						<ComparisonList>
-							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="106" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>
@@ -394,7 +392,7 @@
       <!-- Format -->
 			<SequenceContainer name="BalloonFormatPacket">
         <EntryList>
-          <ParameterRefEntry parameterRef="BFC_Format_Storage_Status" />
+          <ParameterRefEntry parameterRef="BFC_Format_Storage_Command_Excecuted" />
           <ParameterRefEntry parameterRef="BFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="BFC_Last_Snr" />
         </EntryList>
@@ -402,7 +400,7 @@
 					<RestrictionCriteria>
 						<ComparisonList>
 							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="204" parameterRef="CCSDS_Packet_ID/APID" />
+							<Comparison value="203" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>
@@ -419,16 +417,16 @@
 					<RestrictionCriteria>
 						<ComparisonList>
 							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="205" parameterRef="CCSDS_Packet_ID/APID" />
+							<Comparison value="204" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>
 			</SequenceContainer>
 
       <!-- Ejection 1 -->
-			<SequenceContainer name="BalloonEjectionCharge1Packet">
+			<SequenceContainer name="BalloonEjectionChargeReceivedPacket">
         <EntryList>
-          <ParameterRefEntry parameterRef="BFC_Ejection_Charge_1_Status" />
+          <ParameterRefEntry parameterRef="BFC_Ejection_Charge_Command_Excecuted" />
           <ParameterRefEntry parameterRef="BFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="BFC_Last_Snr" />
         </EntryList>
@@ -436,24 +434,7 @@
 					<RestrictionCriteria>
 						<ComparisonList>
 							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="206" parameterRef="CCSDS_Packet_ID/APID" />
-						</ComparisonList>
-					</RestrictionCriteria>
-				</BaseContainer>
-			</SequenceContainer>
-
-      <!-- Ejection 2 -->
-			<SequenceContainer name="BalloonEjectionCharge2Packet">
-        <EntryList>
-          <ParameterRefEntry parameterRef="BFC_Ejection_Charge_2_Status" />
-          <ParameterRefEntry parameterRef="BFC_Last_Rssi" />
-          <ParameterRefEntry parameterRef="BFC_Last_Snr" />
-        </EntryList>
-				<BaseContainer containerRef="TelemetryPacket">
-					<RestrictionCriteria>
-						<ComparisonList>
-							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="207" parameterRef="CCSDS_Packet_ID/APID" />
+							<Comparison value="205" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>

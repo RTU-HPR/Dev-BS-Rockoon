@@ -82,7 +82,8 @@ class Rotator:
     print(f"Calculated rotator angles: {self.rotator_angles}")
     
   def create_rotator_command(self):
-    command = ""
+    self.rotator_last_command = self.rotator_command
+    self.rotator_command = f"rtu_rotator,{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
     
   def set_target(self, target):
     print(f"Setting rotator target from {self.rotator_target} to {target}")
@@ -98,7 +99,6 @@ class Rotator:
   
   def set_auto_rotator_position(self, latitude, longitude, altitude):
     if self.rotator_position_mode == "auto":
-      print(f"Rotator position is auto updated to {latitude}, {longitude}, {altitude}")
       self.rotator_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
       self.new_angles_required = True
     else:
@@ -106,7 +106,6 @@ class Rotator:
   
   def set_auto_target_position(self, latitude, longitude, altitude):
     if self.rotator_control_mode == "auto":
-      print(f"Target position is auto updated to {latitude}, {longitude}, {altitude}")
       self.rotator_target_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
       self.new_angles_required = True
   

@@ -1,5 +1,9 @@
 import socket
 import queue
+import time
+
+# TIMING
+CYCLE_TIME = 24 # Seconds
 
 class ConnectionManager:
   def __init__(self, yamcs_tm_address: tuple, yamcs_tc_address: tuple, transceiver_tm_address: tuple, transceiver_tc_address: tuple) -> None:    
@@ -28,12 +32,16 @@ class ConnectionManager:
     Wait for sendable packets in queue and send them to the appropriate destination.
     """
     while True:
-      source, packet = self.sendable_messages.get()
-      print(f"Sending packet from {source}: {packet}")
+      packet = self.sendable_messages.get()
       try:
-        if source == "yamcs":
-          self.__send_to_transceiver(packet)
-        elif source == "transceiver":
+        if isinstance(packet, str):
+          while True:
+            if (int(time.mktime(time.localtime())) % CYCLE_TIME == 0):
+              time.sleep(3)
+              self.__send_to_transceiver(packet)
+              print("Message sent to transceiver")
+              break
+        elif isinstance(packet, bytearray):
           self.__send_to_yamcs(packet)
         self.sendable_messages.task_done()
       except Exception as e:

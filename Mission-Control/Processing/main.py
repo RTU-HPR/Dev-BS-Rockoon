@@ -11,28 +11,19 @@ import config
 
 if __name__ == '__main__':
   # Create objects
-  connection_manager = ConnectionManager(
-    config.YAMCS_TM_ADDRESS,
-    config.YAMCS_TC_ADDRESS,
-    config.TRANSCEIVER_TM_ADDRESS,
-    config.TRANSCEIVER_TC_ADDRESS
-  )
+  connection_manager = ConnectionManager(config.YAMCS_TM_ADDRESS,
+                          config.YAMCS_TC_ADDRESS,
+                          config.TRANSCEIVER_TM_ADDRESS,
+                          config.TRANSCEIVER_TC_ADDRESS)
   
   rotator = Rotator()
   
-  processor = PacketProcessor(
-    connection_manager,
-    rotator,
-    config.RECEIVE_HEADERS,
-    config.REQUEST_HEADERS,
-    config.HEADER_TO_APID,
-    config.PACKETID_TO_HEADER,
-    config.TELECOMMAND_APID,
-    config.TELEMETRY_MESSAGE_STRUCTURE,
-    config.STATUS_MESSAGE_STRUCTURE,
-    config.INFO_MESSAGE_STRUCTURE,
-    config.ERROR_MESSAGE_STRUCTURE
-  )
+  processor = PacketProcessor(connection_manager, 
+                              rotator, 
+                              config.APID_TO_TYPE,
+                              config.TELECOMMAND_APID,
+                              config.PACKETID_TO_TYPE,
+                              config.TELEMETRY_MESSAGE_STRUCTURE)
   
   router = Router(processor, connection_manager, rotator)
   sondehub_uploader = SondeHubUploader()
@@ -51,15 +42,15 @@ if __name__ == '__main__':
   
   while True:
     try:
-      print("All threads:")
-      for thread in thread_manager.active_threads:
-        if not thread.is_alive():
-          thread_manager.active_threads.remove(thread)
-          continue
-        print(f"* Thread name: {thread.name}")
+      # print("All threads:")
+      # for thread in thread_manager.active_threads:
+      #   if not thread.is_alive():
+      #     thread_manager.active_threads.remove(thread)
+      #     continue
+      #   print(f"* Thread name: {thread.name}")
         
-      print()
-      sleep(1)
+      # print()
+      sleep(5)
     except KeyboardInterrupt:
       print("Exiting...")
       exit(0)
