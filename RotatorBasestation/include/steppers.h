@@ -13,10 +13,10 @@ class Steppers
     */
     double calculateShortestAzimuth(double current_az, double target_az);
 
-    void enableAzimuthStepper(){digitalWrite(config.azimuth_config.enable_pin, HIGH);};
-    void enableElevationStepper(){digitalWrite(config.elevation_config.enable_pin, HIGH);};
-    void disableAzimuthStepper(){digitalWrite(config.azimuth_config.enable_pin, LOW);};
-    void disableElevationStepper(){digitalWrite(config.elevation_config.enable_pin, LOW);};
+    void enableAzimuthStepper(){digitalWrite(azimuth_config.enable_pin, HIGH);};
+    void enableElevationStepper(){digitalWrite(elevation_config.enable_pin, HIGH);};
+    void disableAzimuthStepper(){digitalWrite(azimuth_config.enable_pin, LOW);};
+    void disableElevationStepper(){digitalWrite(elevation_config.enable_pin, LOW);};
 
   public:
     // STRUCT DECLARATIONS
