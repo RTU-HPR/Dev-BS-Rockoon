@@ -183,6 +183,26 @@
       <Parameter name="Rotator_Longitude" parameterTypeRef="float_t" />
       <Parameter name="Rotator_Altitude" parameterTypeRef="float_t" />
 
+      <!-- CALCULATIONS -->
+      <!-- PFC -->
+      <Parameter name="PFC_GPS_Vertical_Speed" parameterTypeRef="float_t" />
+      <Parameter name="PFC_Baro_Vertical_Speed" parameterTypeRef="float_t" />
+      <Parameter name="PFC_GPS_Horizontal_Speed" parameterTypeRef="float_t" />
+      <Parameter name="PFC_GPS_Total_Speed" parameterTypeRef="float_t" />
+      <Parameter name="PFC_GPS_Ground_Distance_To_Rotator" parameterTypeRef="float_t" />
+      <Parameter name="PFC_GPS_Straight_Distance_To_Rotator" parameterTypeRef="float_t" />
+
+      <!-- BFC -->
+      <Parameter name="BFC_GPS_Vertical_Speed" parameterTypeRef="float_t" />
+      <Parameter name="BFC_Baro_Vertical_Speed" parameterTypeRef="float_t" />
+      <Parameter name="BFC_GPS_Horizontal_Speed" parameterTypeRef="float_t" />
+      <Parameter name="BFC_GPS_Total_Speed" parameterTypeRef="float_t" />
+      <Parameter name="BFC_GPS_Ground_Distance_To_Rotator" parameterTypeRef="float_t" />
+      <Parameter name="BFC_GPS_Straight_Distance_To_Rotator" parameterTypeRef="float_t" />
+
+      <!-- ROTATOR -->
+      <Parameter name="Calculated_Azimuth" parameterTypeRef="float_t" />
+      <Parameter name="Calculated_Elevation" parameterTypeRef="float_t" />
     </ParameterSet>
 
     <!-- RECEIVABLE PACKET DEFINITION -->
@@ -448,15 +468,72 @@
       <!-- Rotator Position -->
       <SequenceContainer name="RotatorPositionPacket">
         <EntryList>
-          <Parameter name="Rotator_Latitude" parameterTypeRef="float_t" />
-          <Parameter name="Rotator_Longitude" parameterTypeRef="float_t" />
-          <Parameter name="Rotator_Altitude" parameterTypeRef="float_t" />
+          <ParameterRefEntry parameterRef="Rotator_Latitude" />
+          <ParameterRefEntry parameterRef="Rotator_Longitude" />
+          <ParameterRefEntry parameterRef="Rotator_Altitude" />
         </EntryList>
 				<BaseContainer containerRef="TelemetryPacket">
 					<RestrictionCriteria>
 						<ComparisonList>
 							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
 							<Comparison value="50" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+      <!-- CALCULATIONS -->
+      <!-- PFC -->
+      <SequenceContainer name="PFC_Telemetry_Calculations">
+        <EntryList>
+          <ParameterRefEntry parameterRef="PFC_GPS_Vertical_Speed" />
+          <ParameterRefEntry parameterRef="PFC_Baro_Vertical_Speed" />
+          <ParameterRefEntry parameterRef="PFC_GPS_Horizontal_Speed" />
+          <ParameterRefEntry parameterRef="PFC_GPS_Total_Speed" />
+          <ParameterRefEntry parameterRef="PFC_GPS_Ground_Distance_To_Rotator" />
+          <ParameterRefEntry parameterRef="PFC_GPS_Straight_Distance_To_Rotator" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="60" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+      <!-- BFC -->
+      <SequenceContainer name="BFC_Telemetry_Calculations">
+        <EntryList>
+          <ParameterRefEntry parameterRef="BFC_GPS_Vertical_Speed" />
+          <ParameterRefEntry parameterRef="BFC_Baro_Vertical_Speed" />
+          <ParameterRefEntry parameterRef="BFC_GPS_Horizontal_Speed" />
+          <ParameterRefEntry parameterRef="BFC_GPS_Total_Speed" />
+          <ParameterRefEntry parameterRef="BFC_GPS_Ground_Distance_To_Rotator" />
+          <ParameterRefEntry parameterRef="BFC_GPS_Straight_Distance_To_Rotator" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="70" parameterRef="CCSDS_Packet_ID/APID" />
+						</ComparisonList>
+					</RestrictionCriteria>
+				</BaseContainer>
+			</SequenceContainer>
+
+      <!-- ROTATOR -->
+      <SequenceContainer name="Rotator_Calculated_Angles">
+        <EntryList>
+          <ParameterRefEntry parameterRef="Calculated_Azimuth" />
+          <ParameterRefEntry parameterRef="Calculated_Elevation" />
+        </EntryList>
+				<BaseContainer containerRef="TelemetryPacket">
+					<RestrictionCriteria>
+						<ComparisonList>
+							<Comparison value="NotPresent" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
+							<Comparison value="80" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>

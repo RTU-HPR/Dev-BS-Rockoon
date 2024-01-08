@@ -24,12 +24,12 @@ class Rotator:
       self.calculate_rotator_angles()
       self.create_rotator_command()
       self.new_angles_required = False
+    sleep(0.1)
 
   def calculate_rotator_angles(self):
     # Refrences: 
     # * https://gis.stackexchange.com/questions/58923/calculating-view-angle
     # * https://stackoverflow.com/questions/60515719/are-there-functions-for-converting-earth-coordinate-systems-within-the-standard
-    
     # Convert rotator position to ECEF
     rotator_ecef = EarthLocation.from_geodetic(lat=self.rotator_position["latitude"], 
                                 lon=self.rotator_position["longitude"], 
@@ -66,17 +66,18 @@ class Rotator:
     
     # Convert angles to degrees
     elevation = 90 - np.rad2deg(elevation)
+    if elevation < 0:
+      elevation = 0
     azimuth = np.rad2deg(azimuth)
     if azimuth < 0:
       azimuth += 360
       
     # Round the angles
-    elevation = round(elevation, 2)
-    azimuth = round(azimuth, 2)
+    elevation = round(elevation, 1)
+    azimuth = round(azimuth, 1)
         
     # Set angles
     self.rotator_angles = {"azimuth": azimuth, "elevation": elevation}
-    print(f"Calculated rotator angles: {self.rotator_angles}")
     
   def create_rotator_command(self):
     self.rotator_last_command = self.rotator_command
@@ -95,16 +96,26 @@ class Rotator:
     self.rotator_position_mode = mode
   
   def set_auto_rotator_position(self, latitude, longitude, altitude):
-    if self.rotator_position_mode == "auto" and self.rotator_position["latitude"] != latitude and self.rotator_position["longitude"] != longitude and self.rotator_position["altitude"] != altitude:
-      self.rotator_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
-      self.new_angles_required = True
+    # Check if in auto mode
+    if self.rotator_position_mode == "auto":
+      # Check if passed values are floats
+      if isinstance(latitude, float) and isinstance(longitude, float) and isinstance(altitude, float):
+        # Check if the rotator position is not already the same as the passed in values
+        if self.rotator_position["latitude"] != latitude and self.rotator_position["longitude"] != longitude and self.rotator_position["altitude"] != altitude:
+          self.rotator_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
+          self.new_angles_required = True
     sleep(0.1)
   
   def set_auto_target_position(self, latitude, longitude, altitude):
-    if self.rotator_control_mode == "auto" and self.rotator_target_position["latitude"] != latitude and self.rotator_target_position["longitude"] != longitude and self.rotator_target_position["altitude"] != altitude:
-      self.rotator_target_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
-      self.new_angles_required = True
-  
+    # Check if in auto mode
+    if self.rotator_control_mode == "auto":
+      # Check if passed values are floats
+      if isinstance(latitude, float) and isinstance(longitude, float) and isinstance(altitude, float):
+        # Check if the rotator target position is not already the same as the passed in values
+        if self.rotator_target_position["latitude"] != latitude and self.rotator_target_position["longitude"] != longitude and self.rotator_target_position["altitude"] != altitude:
+          self.rotator_target_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
+          self.new_angles_required = True
+    
   def set_manual_rotator_position(self, latitude, longitude, altitude):
     self.rotator_position_mode = "manual"
     print(f"Rotator position is manually set to {latitude}, {longitude}, {altitude}")

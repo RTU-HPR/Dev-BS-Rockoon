@@ -62,8 +62,11 @@ class ConnectionManager:
     try:
       message, addr = self.transceiver_tm_socket.recvfrom(4096)
       message = message.decode("ascii")
-      if "Heartbeat" not in message:
+      if "Heartbeat" in message:
+        print(f"WiFi RSSI: {message.split(",")[1]} dBm")
+      else:
         self.received_messages.put(message)
+        
     except socket.timeout:
       print("Connection to transceiver timed out")
     except Exception as e:

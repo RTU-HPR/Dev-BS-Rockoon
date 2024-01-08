@@ -4,6 +4,8 @@ import queue
 
 from modules.connection_manager import ConnectionManager 
 from modules.rotator import Rotator
+from modules.calculations import *
+from config import CALCULATION_MESSAGE_STRUCTURE
 
 class PacketProcessor:
   def __init__(self, 
@@ -30,6 +32,17 @@ class PacketProcessor:
     self.bfc_telemetry = dict.fromkeys(telemetry_message_structure["bfc"])
     self.rotator_telemetry = dict.fromkeys(telemetry_message_structure["rotator"])
     
+    # Timing
+    self.last_pfc_telemetry_epoch = 0
+    self.last_bfc_telemetry_epoch = 0
+    
+    # Calculations
+    self.pfc_calculations = dict.fromkeys(telemetry_message_structure["pfc"], 0)
+    self.bfc_calculations = dict.fromkeys(telemetry_message_structure["bfc"], 0)
+    self.rotator_calculations = dict.fromkeys(telemetry_message_structure["rotator"], 0)
+    self.pfc_calculations_index = 1
+    self.bfc_calculations_index = 1
+    
     # Queues
     self.processed_packets = queue.Queue()
   
@@ -40,7 +53,7 @@ class PacketProcessor:
     try:
       # If the message is a string, it is from transceiver
       if isinstance(packet, str):
-        converted = self.__convert_message_to_ccsds(packet)
+        converted = self.convert_message_to_ccsds(packet)
         if converted is None:
           raise Exception("Invalid message")
         
@@ -57,7 +70,7 @@ class PacketProcessor:
         
       # If the message is a bytearray, it is from YAMCS
       elif isinstance(packet, bytearray):
-        converted = self.__convert_ccsds_to_message(packet)
+        converted = self.convert_ccsds_to_message(packet)
         if converted is None:
           raise Exception("Invalid ccsds packet")
 
@@ -92,7 +105,7 @@ class PacketProcessor:
     except ValueError:
       return False
   
-  def __convert_message_to_ccsds(self, message: str):
+  def convert_message_to_ccsds(self, message: str):
     """
     Converts a message string to a CCSDS packet.
     
@@ -136,7 +149,7 @@ class PacketProcessor:
       
     # Create full packet
     try:
-      packet = self.__create_primary_header(apid, sequence_count, len(packet_data))
+      packet = self.create_primary_header(apid, sequence_count, len(packet_data))
       packet += packet_data
     except Exception as e:
       print(f"Error creating primary header: {e}. Full message: {message}")
@@ -147,7 +160,7 @@ class PacketProcessor:
   def __binary_to_float(self, binary):
     return unpack('!f',pack('!I', int(binary, 2)))[0]
   
-  def __convert_packet_data_to_string(self,packet_id, packet_data):    
+  def convert_packet_data_to_string(self,packet_id, packet_data):    
     # Heater set mode
     if packet_id == 1003:
       # Read 8 bits to get the heater mode
@@ -190,7 +203,7 @@ class PacketProcessor:
     else:
       return ""
     
-  def __convert_ccsds_to_message(self, packet: bytearray):
+  def convert_ccsds_to_message(self, packet: bytearray):
     """
     Converts a CCSDS packet to a message string.
     If the packet is invalid, returns an empty string.
@@ -225,7 +238,7 @@ class PacketProcessor:
       packet_sequence_count = int(packet_sequence_count, 2)
 
       # Get data values from packet
-      data_string = self.__convert_packet_data_to_string(packet_id, packet_data)
+      data_string = self.convert_packet_data_to_string(packet_id, packet_data)
 
       # Get current time in epoch format
       current_time = int(time.mktime(time.localtime()))
@@ -288,7 +301,7 @@ class PacketProcessor:
     except Exception as e:
       print(f"Error processing rotator command: {e}. Full command: {packet_id}, {data}")  
   
-  def __create_primary_header(self, apid: int, sequence_count: int, data_length: int) -> bytearray:
+  def create_primary_header(self, apid: int, sequence_count: int, data_length: int) -> bytearray:
     """
     Creates the primary header of a CCSDS packet.
     """
@@ -342,6 +355,24 @@ class PacketProcessor:
             message_dict[key] = float(value)
           else:
             message_dict[key] = value
+        
+        old_pfc_telemetry_epoch = self.last_pfc_telemetry_epoch
+        self.last_pfc_telemetry_epoch = int(time.mktime(time.localtime()))
+        time_delta = self.last_pfc_telemetry_epoch - old_pfc_telemetry_epoch
+        
+        if self.pfc_telemetry["gps_latitude"] != None:
+          self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
+          message = f"calculations,60,{self.pfc_calculations_index},{self.pfc_calculations['gps_vertical_speed']},{self.pfc_calculations['baro_vertical_speed']},{self.pfc_calculations['horizontal_speed']},{self.pfc_calculations['gps_total_speed']},{self.pfc_calculations['ground_distance_to_rotator']},{self.pfc_calculations['straight_line_distance_to_rotator']}"
+    
+          converted = self.convert_message_to_ccsds(message)
+          if converted is None:
+            return
+          
+          # Split the message into parts
+          ccsds, apid, sequence_count = converted
+          self.processed_packets.put(ccsds)
+          self.pfc_calculations_index += 1
+          
         self.pfc_telemetry = message_dict
       
       # BFC essential telemetry
@@ -353,6 +384,24 @@ class PacketProcessor:
             message_dict[key] = float(value)
           else:
             message_dict[key] = value
+            
+        old_bfc_telemetry_epoch = self.last_bfc_telemetry_epoch
+        self.last_bfc_telemetry_epoch = int(time.mktime(time.localtime()))
+        time_delta = self.last_bfc_telemetry_epoch - old_bfc_telemetry_epoch
+        
+        if self.bfc_telemetry["gps_latitude"] != None:
+          self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
+          message = f"calculations,70,{self.bfc_calculations_index},{self.bfc_calculations['gps_vertical_speed']},{self.bfc_calculations['baro_vertical_speed']},{self.bfc_calculations['horizontal_speed']},{self.bfc_calculations['gps_total_speed']},{self.bfc_calculations['ground_distance_to_rotator']},{self.bfc_calculations['straight_line_distance_to_rotator']}"
+    
+          converted = self.convert_message_to_ccsds(message)
+          if converted is None:
+            return
+          
+          # Split the message into parts
+          ccsds, apid, sequence_count = converted
+          self.processed_packets.put(ccsds)
+          self.bfc_calculations_index += 1
+          
         self.bfc_telemetry = message_dict
       
       # Rotator position telemetry
@@ -365,6 +414,7 @@ class PacketProcessor:
           else:
             message_dict[key] = value
         self.rotator_telemetry = message_dict
+        
     except Exception as e:
       print(f"Error converting message to dictonary: {e}. Full message: {message}")
     

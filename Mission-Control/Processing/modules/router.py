@@ -14,20 +14,25 @@ class Router:
   def send_data_to_map(self):
     # If the balloon has a valid position and the coordinates are not already in the list, add them
     if self.processor.bfc_telemetry["gps_latitude"] != 0 and self.processor.bfc_telemetry["gps_longitude"] != 0:
-      if [self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]] not in self.map.ballon_coordinates:
-        self.map.ballon_coordinates.append([self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]])
-        self.map.map_update_required = True    
+      if isinstance(self.processor.bfc_telemetry["gps_latitude"], float) and isinstance(self.processor.bfc_telemetry["gps_longitude"], float):
+        if [self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]] not in self.map.ballon_coordinates:
+          self.map.ballon_coordinates.append([self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]])
+          self.map.map_update_required = True    
 
     # If the payload has a valid position and the coordinates are not already in the list, add them
     if self.processor.pfc_telemetry["gps_latitude"] != 0 and self.processor.pfc_telemetry["gps_longitude"] != 0:
-      if [self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]] not in self.map.payload_coordinates:
-        self.map.payload_coordinates.append([self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]])
-        self.map.map_update_required = True    
+      if isinstance(self.processor.pfc_telemetry["gps_latitude"], float) and isinstance(self.processor.pfc_telemetry["gps_longitude"], float):
+        if [self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]] not in self.map.payload_coordinates:
+          self.map.payload_coordinates.append([self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]])
+          self.map.map_update_required = True    
         
     # If the rotator has a valid position and the coordinates are not the same as the last ones in the list, change them
     if [self.processor.rotator_telemetry["latitude"], self.processor.rotator_telemetry["longitude"]] not in self.map.rotator_coordinates:
-      self.map.rotator_coordinates = [[self.processor.rotator_telemetry["latitude"], self.processor.rotator_telemetry["longitude"]]]
-      self.map.map_update_required = True    
+      if isinstance(self.processor.rotator_telemetry["latitude"], float) and isinstance(self.processor.rotator_telemetry["longitude"], float):
+        self.map.rotator_coordinates = [[self.processor.rotator_telemetry["latitude"], self.processor.rotator_telemetry["longitude"]]]
+        self.map.map_update_required = True  
+        
+    sleep(0.1)  
   
   def send_processed_data(self):
     try:
@@ -57,17 +62,16 @@ class Router:
 
     # If the rotator is in auto tracking mode, update the rotator target position
     if self.rotator.rotator_target == "pfc":
-      if self.processor.pfc_telemetry["gps_latitude"] != 0 and self.processor.pfc_telemetry["gps_longitude"] != 0:
-        self.rotator.set_auto_target_position(self.processor.pfc_telemetry["gps_latitude"],
+      self.rotator.set_auto_target_position(self.processor.pfc_telemetry["gps_latitude"],
                                               self.processor.pfc_telemetry["gps_longitude"],
                                               self.processor.pfc_telemetry["gps_altitude"])
         
     elif self.rotator.rotator_target == "bfc":
-      if self.processor.bfc_telemetry["gps_latitude"] != 0 and self.processor.bfc_telemetry["gps_longitude"] != 0:
-        self.rotator.set_auto_target_position(self.processor.bfc_telemetry["gps_latitude"],
+      self.rotator.set_auto_target_position(self.processor.bfc_telemetry["gps_latitude"],
                                               self.processor.bfc_telemetry["gps_longitude"],
                                               self.processor.bfc_telemetry["gps_altitude"])
-        
+    sleep(0.1)
+  
     
   def send_data_to_logging(self):
     pass

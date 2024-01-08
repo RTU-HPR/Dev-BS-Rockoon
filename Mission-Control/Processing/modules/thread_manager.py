@@ -6,14 +6,16 @@ from modules.processor import PacketProcessor
 from modules.router import Router
 from modules.sondehub import SondeHubUploader
 from modules.map import Map
+from modules.rotator import Rotator
 
 class ThreadManager:
-  def __init__(self, connection_manager: ConnectionManager, packet_processor: PacketProcessor, router: Router, sondehub_uploader: SondeHubUploader, map: Map) -> None:
+  def __init__(self, connection_manager: ConnectionManager, packet_processor: PacketProcessor, router: Router, sondehub_uploader: SondeHubUploader, map: Map, rotator: Rotator) -> None:
     self.connection_manager = connection_manager
     self.packet_processor = packet_processor
     self.router = router
     self.sondehub_uploader = sondehub_uploader
     self.map = map
+    self.rotator = rotator
     
     self.active_threads = []
     self.stop_event = Event()
@@ -67,6 +69,12 @@ class ThreadManager:
     thread.start()
     self.active_threads.append(thread)
     
+  def start_send_data_to_map_thread(self):
+    thread = Thread(target=self.send_data_to_map_thread, name="Map Data Sender")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
+    
   def start_rotator_command_to_transceiver_thread(self):
     thread = Thread(target=self.rotator_command_to_transceiver_thread, name="Rotator Command Sender")
     thread.daemon = True
@@ -81,6 +89,12 @@ class ThreadManager:
     
   def start_send_heartbeat_to_transceiver_thread(self):
     thread = Thread(target=self.send_heartbeat_to_transceiver_thread, name="Heartbeat Sender")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
+    
+  def start_control_rotator_thread(self):
+    thread = Thread(target=self.control_rotator_thread, name="Rotator Controller")
     thread.daemon = True
     thread.start()
     self.active_threads.append(thread)
@@ -102,6 +116,10 @@ class ThreadManager:
     while not self.stop_event.is_set():
       self.map.update_map()  
   
+  def send_data_to_map_thread(self):
+    while not self.stop_event.is_set():
+      self.router.send_data_to_map()
+  
   def packet_processing_thread(self):
     while not self.stop_event.is_set():
       self.packet_processor.process_packet()
@@ -121,6 +139,10 @@ class ThreadManager:
   def rotator_command_to_transceiver_thread(self):
     while not self.stop_event.is_set():
       self.router.send_rotator_command_to_transceiver()
+      
+  def control_rotator_thread(self):
+    while not self.stop_event.is_set():
+      self.rotator.control_rotator()
   
   def rotator_data_update_thread(self):
     while not self.stop_event.is_set():

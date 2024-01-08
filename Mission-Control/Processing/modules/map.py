@@ -1,8 +1,9 @@
 import folium
 import pandas as pd
 import flask
-import flask.cli
 from time import sleep
+import os
+from bs4 import BeautifulSoup
 
 class Map:
   def __init__(self, map_server_port: int) -> None:
@@ -30,7 +31,6 @@ class Map:
     if self.map_update_required:
       self.create_map()
       # After the map is created, wait at least 30 seconds before updating it again
-      sleep(30)
     sleep(0.1)
   
   def create_map(self) -> None:
@@ -45,14 +45,7 @@ class Map:
     
     # Init map with first coordinate as center
     try:
-      if self.ballon_coordinates:
-        m = folium.Map(self.ballon_coordinates[0])
-      elif self.payload_coordinates:
-        m = folium.Map(self.payload_coordinates[0])
-      elif self.rotator_coordinates:
-        m = folium.Map(self.rotator_coordinates[0])
-      else:
-        m = folium.Map(self.prediction_coordinates[0])
+      m = folium.Map([0, 0])
     except Exception as e:
       print(f"Error creating map: {e}")
       return
@@ -63,7 +56,7 @@ class Map:
         # Start position
         folium.Marker(
             location=self.ballon_coordinates[0],
-            popup=f"{self.ballon_coordinates[0][0]}, {self.ballon_coordinates[0][-1]}",
+            popup=f"{self.ballon_coordinates[0][0]}, {self.ballon_coordinates[0][11]}",
             tooltip="Balloon starting position",
             icon=folium.Icon(color="red"),
         ).add_to(m)
@@ -71,7 +64,7 @@ class Map:
         # Last position
         folium.Marker(
             location=self.ballon_coordinates[-1],
-            popup=f"{self.ballon_coordinates[-1][0]}, {self.ballon_coordinates[-1][-1]}",
+            popup=f"{self.ballon_coordinates[-1][0]}, {self.ballon_coordinates[-1][1]}",
             tooltip="Balloon last position",
             icon=folium.Icon(color="red"),
         ).add_to(m)
@@ -94,7 +87,7 @@ class Map:
         # Start position
         folium.Marker(
             location=self.payload_coordinates[0],
-            popup=f"{self.payload_coordinates[0], self.payload_coordinates[0]}",
+            popup=f"{self.payload_coordinates[0][0], self.payload_coordinates[0][1]}",
             tooltip="Payload starting position",
             icon=folium.Icon(color="blue"),
         ).add_to(m)
@@ -102,14 +95,14 @@ class Map:
         # Last position
         folium.Marker(
             location=self.payload_coordinates[-1],
-            popup=f"{self.payload_coordinates[-1], self.payload_coordinates[-1]}",
+            popup=f"{self.payload_coordinates[-1][0], self.payload_coordinates[-1][1]}",
             tooltip="Payload starting position",
             icon=folium.Icon(color="blue"),
         ).add_to(m)
       
         # Trajectory
         folium.PolyLine(
-            locations=self.ballon_coordinates,
+            locations=self.payload_coordinates,
             color="blue",
             weight=5,
             tooltip="Payload trajectory",
@@ -125,7 +118,7 @@ class Map:
         # Start position
         folium.Marker(
             location=self.prediction_coordinates[0],
-            popup=f"{self.prediction_coordinates[0], self.prediction_coordinates[0]}",
+            popup=f"{self.prediction_coordinates[0][0], self.prediction_coordinates[0][1]}",
             tooltip="Prediction starting point",
             icon=folium.Icon(color="cyan"),
         ).add_to(m)
@@ -133,7 +126,7 @@ class Map:
         # Last position
         folium.Marker(
             location=self.prediction_coordinates[-1],
-            popup=f"{self.prediction_coordinates[-1], self.prediction_coordinates[-1]}",
+            popup=f"{self.prediction_coordinates[-1][1], self.prediction_coordinates[-1][1]}",
             tooltip="Prediction landing point",
             icon=folium.Icon(color="cyan"),
         ).add_to(m)
@@ -154,10 +147,10 @@ class Map:
     if self.rotator_coordinates:
       try:
         folium.Marker(
-            location=self.rotator_coordinates,
-            popup=f"{self.rotator_coordinates[0], self.rotator_coordinates[0]}",
-            tooltip="Rotator position",
-            icon=folium.Icon(color="green"),
+          location=self.rotator_coordinates[0],
+          popup=f"{self.rotator_coordinates[0][0], self.rotator_coordinates[0][1]}",
+          tooltip="Rotator position",
+          icon=folium.Icon(color="green"),
         ).add_to(m)
       except Exception as e:
         self.rotator_coordinates = []
@@ -177,7 +170,19 @@ class Map:
       return
     
     # Save the map
-    m.save("../templates/map.html")
+    path = os.path.join(os.path.dirname(__file__), "../templates/map.html")
+    m.save(path)
+    
+    # Pass map HTML text to BeautifulSoup, returns a soup object.
+    soup = BeautifulSoup(open(path), 'html.parser')
+    # Find head section and append the 'tab_icon" html. Favicon links must be in the <head> section.
+    head = soup.find('head')
+    if head:
+      head.append(BeautifulSoup("""<meta http-equiv="refresh" content="5">""", 'html.parser'))  # Needs to be parsed as html by BeautifulSoup to work.
+    # Overwrite the edited html to the MyMap.html file
+    with open(path, 'w') as html_file:
+      html_file.write(str(soup))
+    
     self.map_update_required = False  
   
   def clear_ballon_coordinates(self) -> None:
