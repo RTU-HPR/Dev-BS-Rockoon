@@ -7,12 +7,12 @@ from modules.rotator import Rotator
 
 class PacketProcessor:
   def __init__(self, 
-               connection_manager: ConnectionManager,
-               rotator: Rotator,
-               apid_to_type: dict,
-               telecommand_apid: dict,
-               packetid_to_type: dict,
-               telemetry_message_structure) -> None:
+         connection_manager: ConnectionManager,
+         rotator: Rotator,
+         apid_to_type: dict,
+         telecommand_apid: dict,
+         packetid_to_type: dict,
+         telemetry_message_structure) -> None:
     # Objects
     self.connection_manager = connection_manager
     self.rotator = rotator
@@ -26,58 +26,61 @@ class PacketProcessor:
     self.telemetry_message_structure = telemetry_message_structure
     
     # Telemetry
-    self.pfc_telemetry = {"gps_latitude": 0.0, "gps_longitude": 0.0, "gps_altitude": 0.0}
-    self.bfc_telemetry = {"gps_latitude": 0.0, "gps_longitude": 0.0, "gps_altitude": 0.0}
-    self.rotator_telemetry = {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0}
+    self.pfc_telemetry = dict.fromkeys(telemetry_message_structure["pfc"])
+    self.bfc_telemetry = dict.fromkeys(telemetry_message_structure["bfc"])
+    self.rotator_telemetry = dict.fromkeys(telemetry_message_structure["rotator"])
     
     # Queues
     self.processed_packets = queue.Queue()
   
   def process_packet(self):
-    while True:
-      # Get a packet from connection manager
-      packet = self.connection_manager.received_messages.get()
-      
-      try:
-        # If the message is a string, it is from transceiver
-        if isinstance(packet, str):
-          converted = self.__convert_message_to_ccsds(packet)
-          if converted is None:
-            raise Exception("Invalid message")
-          
-          # Split the message into parts
-          ccsds, apid, sequence_count = converted
-          
-          # If able update the telemetry values from the message
-          self.__update_values_from_message(packet)
-          
-          # Queue the packet for sending to YAMCS
-          self.processed_packets.put(ccsds)
-          
-        # If the message is a bytearray, it is from YAMCS
-        elif isinstance(packet, bytearray):
-          converted = self.__convert_ccsds_to_message(packet)
-          if converted is None:
-            raise Exception("Invalid ccsds packet")
-
-          # Split the message into parts
-          command, data, packet_id = converted
-          
-          # Check if the command is meant to change something in this program
-          self.__process_rotator_command(packet_id, data)
-            
-          # Else queue the packet for sending to transceiver
-          self.processed_packets.put(command)
-
-        else:
-          raise Exception(f"Invalid packet type: {type(packet)}")
+    # Get a packet from connection manager
+    packet = self.connection_manager.received_messages.get()
+    
+    try:
+      # If the message is a string, it is from transceiver
+      if isinstance(packet, str):
+        converted = self.__convert_message_to_ccsds(packet)
+        if converted is None:
+          raise Exception("Invalid message")
         
-        # Complete the task
-        self.connection_manager.received_messages.task_done()
-                      
-      except Exception as e:
-        self.connection_manager.received_messages.task_done()
-        print(f"An error occurred while processing packet: {e}")
+        # Split the message into parts
+        ccsds, apid, sequence_count = converted
+        
+        # If able update the telemetry values from the message
+        self.__update_values_from_message(packet)
+        
+        # Queue the packet for sending to YAMCS
+        self.processed_packets.put(ccsds)
+        
+        print("Transceiver data successfully processed")
+        
+      # If the message is a bytearray, it is from YAMCS
+      elif isinstance(packet, bytearray):
+        converted = self.__convert_ccsds_to_message(packet)
+        if converted is None:
+          raise Exception("Invalid ccsds packet")
+
+        # Split the message into parts
+        command, data, packet_id = converted
+        
+        # Check if the command is meant to change something in this program
+        self.__process_rotator_command(packet_id, data)
+          
+        # Else queue the packet for sending to transceiver
+        self.processed_packets.put(command)
+        
+        print("YAMCS Command successfully processed")
+        
+      else:
+        raise Exception(f"Invalid packet type: {type(packet)}")
+      
+      # Complete the task
+      self.connection_manager.received_messages.task_done()
+                    
+    except Exception as e:
+      self.connection_manager.received_messages.task_done()
+      print(f"An error occurred while processing packet: {e}")
     
   def __isfloat(self, value: str) -> bool:
     """
@@ -250,7 +253,6 @@ class PacketProcessor:
       print(f"Error converting packet to message: {e}. Full packet: {packet}")
       return None
   
-  
   def __process_rotator_command(self, packet_id: int, data: str) -> None:
     try:
       # Set target PFC
@@ -285,8 +287,7 @@ class PacketProcessor:
         self.rotator.set_manual_target_position(latitude, longitude, altitude)
       
     except Exception as e:
-      print(f"Error processing rotator command: {e}. Full command: {packet_id}, {data}")
-    
+      print(f"Error processing rotator command: {e}. Full command: {packet_id}, {data}")  
   
   def __create_primary_header(self, apid: int, sequence_count: int, data_length: int) -> bytearray:
     """
@@ -321,7 +322,6 @@ class PacketProcessor:
 
     return primary_header
   
-    
   def __update_values_from_message(self, message: str) -> None:
     """
     Converts a message string to a dictonary.
@@ -335,7 +335,7 @@ class PacketProcessor:
       message_dict = {}
       
       # PFC essential telemetry
-      if apid == 100:
+      if apid == [key for key, value in self.telecommand_apid.items() if value == "pfc_essential"][0]:
         for key, value in zip(self.telemetry_message_structure["pfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
@@ -346,7 +346,7 @@ class PacketProcessor:
         self.pfc_telemetry = message_dict
       
       # BFC essential telemetry
-      elif apid == 200:
+      elif apid == [key for key, value in self.telecommand_apid.items() if value == "bfc_essential"][0]:
         for key, value in zip(self.telemetry_message_structure["bfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
@@ -357,7 +357,7 @@ class PacketProcessor:
         self.bfc_telemetry = message_dict
       
       # Rotator position telemetry
-      elif apid == 50:
+      elif apid == [key for key, value in self.telecommand_apid.items() if value == "rotator_position"][0]:
         for key, value in zip(self.telemetry_message_structure["rotator"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)

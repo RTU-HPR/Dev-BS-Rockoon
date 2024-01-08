@@ -10,13 +10,23 @@ from modules.rotator import Rotator
 import config
 
 if __name__ == '__main__':
+  print("RTU High Power Rocketry Team - Ground Station Data Processing Software")
+  print()
+  
   # Create objects
-  connection_manager = ConnectionManager(config.YAMCS_TM_ADDRESS,
-                          config.YAMCS_TC_ADDRESS,
-                          config.TRANSCEIVER_TM_ADDRESS,
-                          config.TRANSCEIVER_TC_ADDRESS)
+  try:
+    connection_manager = ConnectionManager(config.YAMCS_TM_ADDRESS,
+                            config.YAMCS_TC_ADDRESS,
+                            config.TRANSCEIVER_TM_ADDRESS,
+                            config.TRANSCEIVER_TC_ADDRESS)
+  except OSError as e:
+    print(f"The following error occurred while creating the connection manager: {e}")
+    print("Most likely the IP address is not valid. Please check the config.py file and try again.")
+    exit(1)
   
   rotator = Rotator()
+  map = Map(map_server_port=config.MAP_SERVER_PORT)
+  sondehub_uploader = SondeHubUploader()
   
   processor = PacketProcessor(connection_manager, 
                               rotator, 
@@ -25,32 +35,40 @@ if __name__ == '__main__':
                               config.PACKETID_TO_TYPE,
                               config.TELEMETRY_MESSAGE_STRUCTURE)
   
-  router = Router(processor, connection_manager, rotator)
-  sondehub_uploader = SondeHubUploader()
-  map = Map(map_server_port=11000)
+  router = Router(processor, connection_manager, rotator, map)
   thread_manager = ThreadManager(connection_manager, processor, router, sondehub_uploader, map)
   
+  print("Setup successful!")
+  print()
+  print("Starting threads...", end="")
+  
   # Start threads
-  thread_manager.start_map_server_thread()
   thread_manager.start_receive_from_transceiver_thread()
   thread_manager.start_receive_from_yamcs_thread()
-  thread_manager.start_packet_sending_thread()
+  thread_manager.start_send_to_transceiver_thread()
+  thread_manager.start_send_to_yamcs_thread()
   thread_manager.start_packet_processing_thread()
-  thread_manager.start_command_to_transceiver_thread()
+  thread_manager.start_send_processed_data_thread()
   thread_manager.start_rotator_command_to_transceiver_thread()
   thread_manager.start_rotator_data_update_thread()
+  thread_manager.start_map_server_thread()
+  thread_manager.start_map_update_thread()
+  
+  print("All threads started!")
+  print()
+  print("Program is now running!")
+  print()
+  print("TO STOP THE PROGRAM, PLEASE PRESS CTRL+C")
+  print()
   
   while True:
     try:
-      # print("All threads:")
-      # for thread in thread_manager.active_threads:
-      #   if not thread.is_alive():
-      #     thread_manager.active_threads.remove(thread)
-      #     continue
-      #   print(f"* Thread name: {thread.name}")
-        
-      # print()
       sleep(5)
     except KeyboardInterrupt:
-      print("Exiting...")
+      print("Keyboard interrupt detected. Stopping threads... Please wait.")
+      thread_manager.stop_event.set()
+      for thread in thread_manager.active_threads:
+        thread.join(timeout=0.1)
+        print(f"Thread {thread.name} stopped.")
+      print("All threads stopped. Exiting...")
       exit(0)

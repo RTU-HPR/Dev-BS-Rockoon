@@ -4,6 +4,11 @@
 # DONT CHANGE ANY APID OR PACKETID VALUES
 # DONT CHANGE ANY APID OR PACKETID VALUES
 
+# Get local IP address
+from socket import gethostname, gethostbyname
+hostname = gethostname()
+local_ip_address = gethostbyname(hostname)
+
 # APID can be from 0 to 255
 # Telemetry package apids
 APID_TO_TYPE = {
@@ -86,22 +91,20 @@ TELEMETRY_MESSAGE_STRUCTURE = {
           "rssi",
           "snr"
           ],
-  "rotator": ["callsign", 
+  "rotator": ["callsign",
+              "apid",
+              "index", 
               "latitude",
               "longitude",
               "altitude"]
 }
 
-
 # CONNECTIONS
 YAMCS_TM_ADDRESS = ('localhost', 10015)
 YAMCS_TC_ADDRESS = ('localhost', 10025)
-TRANSCEIVER_TM_ADDRESS = ('192.168.251.232', 10035)
-# TRANSCEIVER_TC_ADDRESS = ('192.168.251.61', 10045) # Some other heltec
+TRANSCEIVER_TM_ADDRESS = (str(local_ip_address), 10035)
 TRANSCEIVER_TC_ADDRESS = ('192.168.251.159', 10045) # Rotator heltec
+# TRANSCEIVER_TC_ADDRESS = ('192.168.251.61', 10045) # Some other heltec
 
-# Find your local IPv4 address with ipconfig (Windows)
-# Each network has its own IP address
-# TODO: Make this automatic
-# TRANSCEIVER_TM_ADDRESS = ('192.168.1.51', 10035)
-# TRANSCEIVER_TC_ADDRESS = ('192.168.1.51', 10045)
+CYCLE_TIME = 24 # Seconds
+MAP_SERVER_PORT = 8080

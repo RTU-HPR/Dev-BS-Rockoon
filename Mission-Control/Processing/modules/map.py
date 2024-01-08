@@ -1,6 +1,8 @@
 import folium
 import pandas as pd
 import flask
+import flask.cli
+from time import sleep
 
 class Map:
   def __init__(self, map_server_port: int) -> None:
@@ -8,6 +10,7 @@ class Map:
     self.ballon_coordinates = []
     self.payload_coordinates = []
     self.prediction_coordinates = []
+    self.rotator_coordinates = []
     self.map_update_required = False
         
     # Server
@@ -19,13 +22,15 @@ class Map:
     @self.app.route("/")
     def index():
       return flask.render_template("map.html")
-    
+  
   def run_server(self) -> None:
-    self.app.run(port=self.port, debug=False, use_reloader=False)
+    self.app.run(port=self.port, host="0.0.0.0", debug=False, use_reloader=False)
     
   def update_map(self) -> None:
     if self.map_update_required:
-      self.create_map()  
+      self.create_map()
+      # After the map is created, wait at least 30 seconds before updating it again
+      sleep(30)
   
   def create_map(self) -> None:
     """    
@@ -33,7 +38,7 @@ class Map:
     """
     
     # Check if at least one list is given
-    if self.ballon_coordinates == [] and self.payload_coordinates == [] and self.prediction_coordinates == []:
+    if self.ballon_coordinates == [] and self.payload_coordinates == [] and self.prediction_coordinates == [] and self.rotator_coordinates == []:
       print("No coordinates given.")
       return
     
@@ -43,6 +48,8 @@ class Map:
         m = folium.Map(self.ballon_coordinates[0])
       elif self.payload_coordinates:
         m = folium.Map(self.payload_coordinates[0])
+      elif self.rotator_coordinates:
+        m = folium.Map(self.rotator_coordinates[0])
       else:
         m = folium.Map(self.prediction_coordinates[0])
     except Exception as e:
@@ -119,7 +126,7 @@ class Map:
             location=self.prediction_coordinates[0],
             popup=f"{self.prediction_coordinates[0], self.prediction_coordinates[0]}",
             tooltip="Prediction starting point",
-            icon=folium.Icon(color="blue"),
+            icon=folium.Icon(color="cyan"),
         ).add_to(m)
 
         # Last position
@@ -127,13 +134,13 @@ class Map:
             location=self.prediction_coordinates[-1],
             popup=f"{self.prediction_coordinates[-1], self.prediction_coordinates[-1]}",
             tooltip="Prediction landing point",
-            icon=folium.Icon(color="blue"),
+            icon=folium.Icon(color="cyan"),
         ).add_to(m)
       
         # Trajectory
         folium.PolyLine(
             locations=self.prediction_coordinates,
-            color="blue",
+            color="cyan",
             weight=5,
             tooltip="Prediction trajectory",
         ).add_to(m)
@@ -141,10 +148,23 @@ class Map:
       except Exception as e:
         self.prediction_coordinates = []
         print(f"Error adding prediction coordinates to map: {e}")
+        
+    # Add rotator position
+    if self.rotator_coordinates:
+      try:
+        folium.Marker(
+            location=self.rotator_coordinates,
+            popup=f"{self.rotator_coordinates[0], self.rotator_coordinates[0]}",
+            tooltip="Rotator position",
+            icon=folium.Icon(color="green"),
+        ).add_to(m)
+      except Exception as e:
+        self.rotator_coordinates = []
+        print(f"Error adding rotator coordinates to map: {e}")
     
     try:
       # Calculate most extreme south west and north east coordinates
-      all_coordinates = self.ballon_coordinates + self.payload_coordinates + self.prediction_coordinates
+      all_coordinates = self.ballon_coordinates + self.payload_coordinates + self.prediction_coordinates + self.rotator_coordinates
       df = pd.DataFrame(all_coordinates, columns=["Lat", "Lng"])
       sw = df[["Lat", "Lng"]].min().values.tolist()
       ne = df[["Lat", "Lng"]].max().values.tolist()
@@ -158,20 +178,6 @@ class Map:
     # Save the map
     m.save("../templates/map.html")
     self.map_update_required = False  
-        
-  def update_coordinates(self, ballon_coordinates: list = [], payload_coordinates: list = [], prediction_coordinates: list = []) -> None:
-    if not ballon_coordinates and not payload_coordinates and not prediction_coordinates:
-      print("Can't update coordinates as no coordinates are given.")
-      return
-    
-    if ballon_coordinates:
-      self.ballon_coordinates = ballon_coordinates
-    if payload_coordinates:
-      self.payload_coordinates = payload_coordinates
-    if prediction_coordinates:
-      self.prediction_coordinates = prediction_coordinates
-    
-    self.map_update_required = True
   
   def clear_ballon_coordinates(self) -> None:
     self.ballon_coordinates = []
@@ -183,4 +189,8 @@ class Map:
       
   def clear_prediction_coordinates(self) -> None:
     self.prediction_coordinates = []
+    self.map_update_required = True
+    
+  def clear_rotator_coordinates(self) -> None:
+    self.rotator_coordinates = []
     self.map_update_required = True

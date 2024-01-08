@@ -1,5 +1,4 @@
-from calendar import c
-from re import A
+from time import sleep
 from astropy.coordinates import EarthLocation
 import numpy as np
 
@@ -20,14 +19,12 @@ class Rotator:
     self.rotator_last_command = ""
     
   def control_rotator(self):
-    while True:
-      # Check if new angles are required
-      if self.new_angles_required:
-        self.calculate_rotator_angles()
-        self.create_rotator_command()
-        self.new_angles_required = False
+    # Check if new angles are required
+    if self.new_angles_required:
+      self.calculate_rotator_angles()
+      self.create_rotator_command()
+      self.new_angles_required = False
 
-    
   def calculate_rotator_angles(self):
     # Refrences: 
     # * https://gis.stackexchange.com/questions/58923/calculating-view-angle
