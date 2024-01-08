@@ -78,6 +78,12 @@ class ThreadManager:
     thread.daemon = True
     thread.start()
     self.active_threads.append(thread)
+    
+  def start_send_heartbeat_to_transceiver_thread(self):
+    thread = Thread(target=self.send_heartbeat_to_transceiver_thread, name="Heartbeat Sender")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
   
   # THREAD FUNCTIONS
   def receive_from_transceiver_thread(self):
@@ -119,4 +125,8 @@ class ThreadManager:
   def rotator_data_update_thread(self):
     while not self.stop_event.is_set():
       self.router.update_rotator_data()
+  
+  def send_heartbeat_to_transceiver_thread(self):
+    while not self.stop_event.is_set():
+      self.connection_manager.send_heartbeat_to_transceiver()
   

@@ -335,7 +335,7 @@ class PacketProcessor:
       message_dict = {}
       
       # PFC essential telemetry
-      if apid == [key for key, value in self.telecommand_apid.items() if value == "pfc_essential"][0]:
+      if apid == [key for key, value in self.apid_to_type.items() if value == "pfc_essential"][0]:
         for key, value in zip(self.telemetry_message_structure["pfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
@@ -346,7 +346,7 @@ class PacketProcessor:
         self.pfc_telemetry = message_dict
       
       # BFC essential telemetry
-      elif apid == [key for key, value in self.telecommand_apid.items() if value == "bfc_essential"][0]:
+      elif apid == [key for key, value in self.apid_to_type.items() if value == "bfc_essential"][0]:
         for key, value in zip(self.telemetry_message_structure["bfc"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)
@@ -357,7 +357,7 @@ class PacketProcessor:
         self.bfc_telemetry = message_dict
       
       # Rotator position telemetry
-      elif apid == [key for key, value in self.telecommand_apid.items() if value == "rotator_position"][0]:
+      elif apid == [key for key, value in self.apid_to_type.items() if value == "rotator_position"][0]:
         for key, value in zip(self.telemetry_message_structure["rotator"], message_split):
           if value.isdigit():
             message_dict[key] = int(value)

@@ -35,7 +35,7 @@ void Communication::beginWiFi(Config::WiFi_Config &wifi_config)
 {
   // Copy the config
   this->wifi_config = wifi_config;
-  
+
   // Assign functions to WiFi events
   // Connect to WiFi event
   WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info)
@@ -60,14 +60,14 @@ void Communication::WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info
   Serial.println("Connected to WiFi");
   Serial.println("RSSI: " + String(WiFi.RSSI()) + " dBm");
   delay(1000); // REQUIRED: Otherwise wrong IP address is assigned
-  Serial.print("IP address: ");
+  Serial.print("ESP32 IP address: ");
   Serial.println(WiFi.localIP());
 
   // UDP
-  tmUdp.begin(wifi_config.tmPort);
   tcUdp.begin(wifi_config.tcPort);
+  tmUdp.begin(wifi_config.tmPort);
   Serial.println("UDP ports opened");
-  
+
   connecetedToWiFi = true;
 }
 
@@ -122,6 +122,7 @@ void Communication::WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t i
   // Reconnect to WiFi
   WiFi.begin(wifi_config.ssid, wifi_config.pass);
 }
+
 
 void Communication::parseString(String &input, String *values, size_t maxSize)
 {

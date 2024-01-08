@@ -40,9 +40,10 @@ if __name__ == '__main__':
   
   print("Setup successful!")
   print()
-  print("Starting threads...", end="")
   
   # Start threads
+  print("Starting threads...", end="")
+  thread_manager.start_send_heartbeat_to_transceiver_thread()
   thread_manager.start_receive_from_transceiver_thread()
   thread_manager.start_receive_from_yamcs_thread()
   thread_manager.start_send_to_transceiver_thread()

@@ -15,6 +15,8 @@ public:
   Config::WiFi_Config wifi_config;
 
   bool connecetedToWiFi = false;
+  bool remoteIpKnown = false;
+  unsigned long lastUdpReceivedMillis = 0;
 
   int rotatorPositionMessageIndex = 1;
   unsigned long lastRotatorPositionSendMillis = 0;
@@ -31,7 +33,6 @@ public:
    * @return Whether the message was sent successfully
    */
   bool sendRadio(String msg);
-  bool sendError(String errorString);
 
   void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);

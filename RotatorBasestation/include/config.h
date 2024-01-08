@@ -36,8 +36,6 @@ public:
   {
     char ssid[32];
     char pass[32];
-    IPAddress localIP;
-    IPAddress remoteIP;
     unsigned int tmPort;
     unsigned int tcPort;
   };
@@ -109,22 +107,16 @@ public:
    * @brief WiFi config
    * @param ssid The SSID (Name) of the network to connect to
    * @param pass The password of the network to connect to
-   * @param localIP The local IP address of the Heltec. Will be different for each Heltec
-   * @param remoteIP The remote IP address of the PC. Will be different for each PC and network
    * @param tmPort The port to send telemetry messages to
    * @param tcPort The port to receive telecommand messages from
-   * @bug Can't be set with the dot notation, because the compiler doesn't like that the IPAddress type is in the struct
-   * @bug Technically, the local IP adress can be set to be constant, but it caused connection issues
    * @note IMPORTANT: When changing the network configuration, comment out the old configuration
    * and add a comment about the new network configuration being changed to.
    */
   WiFi_Config wifi_config{
-      "Samsung S20",                 // Gundars phone hotspot name
-      "123456789",                   // Gundars phone hotspot password
-      IPAddress(192, 168, 1, 184),   // The current Heltec that is in the rotator receiver box
-      IPAddress(192, 168, 251, 232), // Gundars PC when connected to Gundars phone hotspot # TEST USING 0.0.0.0
-      10035,                         // This ports should not change
-      10045,                         // This ports should not change
+      "Samsung S20", // Gundars phone hotspot name
+      "123456789",   // Gundars phone hotspot password
+      10035,         // This ports should not change
+      10045          // This ports should not change
   };
 
   const int GPS_SEND_INTERVAL = 10000;

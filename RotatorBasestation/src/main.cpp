@@ -61,9 +61,12 @@ void loop()
     msg.toCharArray(msgArray, sizeof(msgArray));
 
     // Send the message over UDP
-    communication.tmUdp.beginPacket(config.wifi_config.remoteIP, config.wifi_config.tmPort);
-    communication.tmUdp.print(msgArray);
-    communication.tmUdp.endPacket();
+    if (communication.connecetedToWiFi && communication.remoteIpKnown)
+    {
+      communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
+      communication.tmUdp.print(msgArray);
+      communication.tmUdp.endPacket();
+    }
 
     // Print the message
     Serial.println("Rotator GPS position UDP packet sent: " + msg);
@@ -119,13 +122,13 @@ void loop()
     msg += "," + String(rssi, 2) + "," + String(snr, 2);
 
     // If connected to WiFi send over UDP
-    if (communication.connecetedToWiFi)
+    if (communication.connecetedToWiFi && communication.remoteIpKnown)
     {
       // Convert String to char array
       char msgArray[msg.length()];
       msg.toCharArray(msgArray, sizeof(msgArray));
 
-      communication.tmUdp.beginPacket(config.wifi_config.remoteIP, config.wifi_config.tmPort);
+      communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
       communication.tmUdp.print(msgArray);
       communication.tmUdp.endPacket();
 
@@ -143,6 +146,8 @@ void loop()
     int packetSize = communication.tcUdp.parsePacket();
     if (packetSize)
     {
+      // We have received a packet, that means that we are connected to UDP
+
       // Read the packet into packetBuffer
       char packetBuffer[packetSize];
       communication.tcUdp.read(packetBuffer, packetSize);
@@ -153,8 +158,19 @@ void loop()
 
       // Create a string from the packet buffer
       String receivedMsg = String(packetBuffer);
-      // Print the received message
-      Serial.println("UDP packet received: " + receivedMsg);
+
+      if (receivedMsg == "UDP Heartbeat")
+      {
+        if (!communication.remoteIpKnown)
+        {
+          communication.remoteIpKnown = true;
+          Serial.println("UDP Heartbeat received. Remote IP address is now known: " + communication.tcUdp.remoteIP().toString());
+        }
+        communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
+        communication.tmUdp.print("UDP Heartbeat");
+        communication.tmUdp.endPacket();
+        return;
+      }
 
       // Get the callsign from the message
       int commaIndex = receivedMsg.indexOf(',');
