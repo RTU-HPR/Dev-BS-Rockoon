@@ -23,8 +23,7 @@ public:
 
   /**
    * @brief Read the GPS data
-   * @param gps GPS object
    * @return Whether the GPS data was read successfully
    */
-  bool readGps(TinyGPSPlus &gps);
+  bool readGps();
 };

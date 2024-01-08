@@ -46,6 +46,33 @@ void setup()
 
 void loop()
 {
+  // Update the GPS
+  gps.readGps();
+
+  // If gps data is valid and required time has passed, send the gps data over UDP
+  if (gps.gps.location.isValid() && gps.gps.time.isValid() && millis() - communication.lastRotatorPositionSendMillis > config.GPS_SEND_INTERVAL)
+  {
+    // Create the message
+    String msg = config.ROTATOR_TELEMETRY_MESSAGE_HEADER_APID + "," + String(communication.rotatorPositionMessageIndex) + ",";
+    msg += String(gps.gps.location.lat(), 7) + "," + String(gps.gps.location.lng(), 7) + "," + String(gps.gps.altitude.meters(), 2);
+
+    // Convert String to char array
+    char msgArray[msg.length()];
+    msg.toCharArray(msgArray, sizeof(msgArray));
+
+    // Send the message over UDP
+    communication.tmUdp.beginPacket(config.wifi_config.remoteIP, config.wifi_config.tmPort);
+    communication.tmUdp.print(msgArray);
+    communication.tmUdp.endPacket();
+
+    // Print the message
+    Serial.println("Rotator GPS position UDP packet sent: " + msg);
+
+    // Update the last send time
+    communication.lastRotatorPositionSendMillis = millis();
+  }
+
+  // Variables for the message
   String msg = "";
   float rssi = 1;
   float snr = 0;

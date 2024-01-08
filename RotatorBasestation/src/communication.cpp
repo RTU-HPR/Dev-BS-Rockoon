@@ -33,6 +33,9 @@ bool Communication::sendRadio(String msg)
 
 void Communication::beginWiFi(Config::WiFi_Config &wifi_config)
 {
+  // Copy the config
+  this->wifi_config = wifi_config;
+  
   // Assign functions to WiFi events
   // Connect to WiFi event
   WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info)

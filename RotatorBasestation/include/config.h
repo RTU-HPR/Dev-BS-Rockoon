@@ -122,10 +122,14 @@ public:
       "Samsung S20",                 // Gundars phone hotspot name
       "123456789",                   // Gundars phone hotspot password
       IPAddress(192, 168, 1, 184),   // The current Heltec that is in the rotator receiver box
-      IPAddress(192, 168, 251, 232), // Gundars PC when connected to Gundars phone hotspot
+      IPAddress(192, 168, 251, 232), // Gundars PC when connected to Gundars phone hotspot # TEST USING 0.0.0.0
       10035,                         // This ports should not change
       10045,                         // This ports should not change
   };
+
+  const int GPS_SEND_INTERVAL = 10000;
+  const int ROTATOR_TELEMETRY_APID = 50;
+  const String ROTATOR_TELEMETRY_MESSAGE_HEADER_APID = "rtu_rotator," + String(ROTATOR_TELEMETRY_APID);
 
   // SPI0
   const int SPI0_RX = 11;

@@ -10,7 +10,14 @@ public:
   WiFiUDP tcUdp;
   WiFiUDP tmUdp;
 
+  // Config needs to be copied to this variable in beginWiFi()
+  // for us to be able to access config values in WiFi events
+  Config::WiFi_Config wifi_config;
+
   bool connecetedToWiFi = false;
+
+  int rotatorPositionMessageIndex = 1;
+  unsigned long lastRotatorPositionSendMillis = 0;
 
   /**
    * @brief Initialise the Communication Radio
@@ -29,6 +36,6 @@ public:
   void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
-  void beginWiFi(WiFi_config &wifi_config);
+  void beginWiFi(Config::WiFi_Config &wifi_config);
   void parseString(String &input, String *values, size_t maxSize);
 };

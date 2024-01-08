@@ -6,9 +6,9 @@ bool Gps::beginGps(const Config::Gps_Config &gps_config)
   return true;
 }
 
-bool Gps::readGps(TinyGPSPlus &gps)
+bool Gps::readGps()
 {
-  while (this->gps_config.serial->available() > 0)
+  while (gps_config.serial->available() > 0)
   {
     gps.encode(this->gps_config.serial->read());
   }
