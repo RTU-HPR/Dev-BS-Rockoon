@@ -95,14 +95,13 @@ class Rotator:
     self.rotator_position_mode = mode
   
   def set_auto_rotator_position(self, latitude, longitude, altitude):
-    if self.rotator_position_mode == "auto":
+    if self.rotator_position_mode == "auto" and self.rotator_position["latitude"] != latitude and self.rotator_position["longitude"] != longitude and self.rotator_position["altitude"] != altitude:
       self.rotator_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
       self.new_angles_required = True
-    else:
-      print("Rotator position is not auto updated because rotator position mode is not auto")
+    sleep(0.1)
   
   def set_auto_target_position(self, latitude, longitude, altitude):
-    if self.rotator_control_mode == "auto":
+    if self.rotator_control_mode == "auto" and self.rotator_target_position["latitude"] != latitude and self.rotator_target_position["longitude"] != longitude and self.rotator_target_position["altitude"] != altitude:
       self.rotator_target_position = {"latitude": latitude, "longitude": longitude, "altitude": altitude}
       self.new_angles_required = True
   

@@ -1,8 +1,8 @@
-from math import e
 from modules.processor import PacketProcessor
 from modules.connection_manager import ConnectionManager
 from modules.rotator import Rotator
 from modules.map import Map
+from time import sleep
 
 class Router:
   def __init__(self, processor: PacketProcessor, connection: ConnectionManager, rotator: Rotator, map: Map) -> None:
@@ -47,11 +47,11 @@ class Router:
       self.connection.sendable_to_transceiver_messages.put(self.rotator.rotator_command)
       self.rotator.rotator_last_command = self.rotator.rotator_command
       print(f"Rotator command sent: {self.rotator.rotator_command}")
+    sleep(0.1)
     
   def update_rotator_data(self):
-    # If the rotator is in auto position mode, update the rotator position
-    if self.rotator.rotator_position_mode == "auto":
-      self.rotator.set_auto_rotator_position(self.processor.rotator_telemetry["latitude"],
+    # Update the rotator position
+    self.rotator.set_auto_rotator_position(self.processor.rotator_telemetry["latitude"],
                                             self.processor.rotator_telemetry["longitude"],
                                             self.processor.rotator_telemetry["altitude"])
 

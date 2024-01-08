@@ -112,12 +112,11 @@ class PacketProcessor:
     
     # Convert each value string to corresponding data type and convert to bytearray
     packet_data = bytearray()
-    
     for value in message_split[3:]:
       try:
         # Integer
         if value.isdigit():    
-          byte = bytearray(pack("i", int(value)))
+          byte = bytearray(pack("i", int(value) & 0xFFFFFFFF))
           byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
           packet_data += byte
         # Float

@@ -31,6 +31,7 @@ class Map:
       self.create_map()
       # After the map is created, wait at least 30 seconds before updating it again
       sleep(30)
+    sleep(0.1)
   
   def create_map(self) -> None:
     """    
