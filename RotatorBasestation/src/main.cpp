@@ -54,7 +54,9 @@ void loop()
   {
     // Create the message
     String msg = config.ROTATOR_TELEMETRY_MESSAGE_HEADER_APID + "," + String(communication.rotatorPositionMessageIndex) + ",";
-    msg += String(gps.gps.location.lat(), 7) + "," + String(gps.gps.location.lng(), 7) + "," + String(gps.gps.altitude.meters(), 2);
+    msg += String(gps.gps.location.lat(), 6) + "," + String(gps.gps.location.lng(), 6) + "," + String(gps.gps.altitude.meters(), 2);
+    // String msg = config.ROTATOR_TELEMETRY_MESSAGE_HEADER_APID + "," + String(communication.rotatorPositionMessageIndex) + ",";
+    // msg += String((float)random(50, 60), 6) + "," + String((float)random(22, 26), 6) + "," + String((float)random(1000, 25000), 2);
 
     // Convert String to char array
     char msgArray[msg.length()];
@@ -167,10 +169,11 @@ void loop()
           Serial.println("UDP Heartbeat received. Remote IP address is now known: " + communication.tcUdp.remoteIP().toString());
         }
         communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
-        communication.tmUdp.print("UDP Heartbeat");
+        communication.tmUdp.print("UDP Heartbeat," + String(WiFi.RSSI()));
         communication.tmUdp.endPacket();
         return;
       }
+      Serial.println("UDP packet received: " + receivedMsg);
 
       // Get the callsign from the message
       int commaIndex = receivedMsg.indexOf(',');
