@@ -75,8 +75,7 @@ TELEMETRY_MESSAGE_STRUCTURE = {
           "gps_altitude",
           "baro_altitude",
           "gps_satellites",
-          "time_since_last_gps_fix",
-          "time_based_on_gps",
+          "gps_time",
           "info_error_in_queue",
           "rssi",
           "snr"
@@ -89,8 +88,7 @@ TELEMETRY_MESSAGE_STRUCTURE = {
           "gps_altitude",
           "baro_altitude",
           "gps_satellites",
-          "time_since_last_gps_fix",
-          "time_based_on_gps",
+          "gps_time",
           "info_error_in_queue",
           "rssi",
           "snr"

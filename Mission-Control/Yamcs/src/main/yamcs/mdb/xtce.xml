@@ -108,8 +108,7 @@
 			<Parameter name="PFC_GPS_Altitude" parameterTypeRef="float_t" />
       <Parameter name="PFC_Baro_Altitude" parameterTypeRef="float_t" />
       <Parameter name="PFC_GPS_Satellites" parameterTypeRef="uint32_t" />
-      <Parameter name="PFC_Time_Since_Last_GPS" parameterTypeRef="uint32_t" />
-      <Parameter name="PFC_Time_Based_On_GPS" parameterTypeRef="bool_t" />
+      <Parameter name="PFC_GPS_Time" parameterTypeRef="uint32_t" />
       <Parameter name="PFC_Error_Info_In_Queue" parameterTypeRef="bool_t" />
 
       <!-- Data complete -->
@@ -148,8 +147,7 @@
 			<Parameter name="BFC_GPS_Altitude" parameterTypeRef="float_t" />
       <Parameter name="BFC_Baro_Altitude" parameterTypeRef="float_t" />
       <Parameter name="BFC_GPS_Satellites" parameterTypeRef="uint32_t" />
-      <Parameter name="BFC_Time_Since_Last_GPS" parameterTypeRef="uint32_t" />
-      <Parameter name="BFC_Time_Based_On_GPS" parameterTypeRef="bool_t" />
+      <Parameter name="BFC_GPS_Time" parameterTypeRef="uint32_t" />
       <Parameter name="BFC_Error_Info_In_Queue" parameterTypeRef="bool_t" />
 
       <!-- Data complete -->
@@ -238,8 +236,7 @@
           <ParameterRefEntry parameterRef="PFC_GPS_Altitude" />
           <ParameterRefEntry parameterRef="PFC_Baro_Altitude" />
           <ParameterRefEntry parameterRef="PFC_GPS_Satellites" />
-          <ParameterRefEntry parameterRef="PFC_Time_Since_Last_GPS" />
-          <ParameterRefEntry parameterRef="PFC_Time_Based_On_GPS" />
+          <ParameterRefEntry parameterRef="PFC_GPS_Time" />
           <ParameterRefEntry parameterRef="PFC_Error_Info_In_Queue" />
           <ParameterRefEntry parameterRef="PFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="PFC_Last_Snr" />
@@ -357,8 +354,7 @@
           <ParameterRefEntry parameterRef="BFC_GPS_Altitude" />
           <ParameterRefEntry parameterRef="BFC_Baro_Altitude" />
           <ParameterRefEntry parameterRef="BFC_GPS_Satellites" />
-          <ParameterRefEntry parameterRef="BFC_Time_Since_Last_GPS" />
-          <ParameterRefEntry parameterRef="BFC_Time_Based_On_GPS" />
+          <ParameterRefEntry parameterRef="BFC_GPS_Time" />
           <ParameterRefEntry parameterRef="BFC_Error_Info_In_Queue" />
           <ParameterRefEntry parameterRef="BFC_Last_Rssi" />
           <ParameterRefEntry parameterRef="BFC_Last_Snr" />
