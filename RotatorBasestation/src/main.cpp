@@ -148,8 +148,6 @@ void loop()
     int packetSize = communication.tcUdp.parsePacket();
     if (packetSize)
     {
-      // We have received a packet, that means that we are connected to UDP
-
       // Read the packet into packetBuffer
       char packetBuffer[packetSize];
       communication.tcUdp.read(packetBuffer, packetSize);
@@ -185,7 +183,7 @@ void loop()
         Serial.println("Rotator angles received");
         String message_string_values[5];
         communication.parseString(receivedMsg, message_string_values, 5);
-        steppers.setRequiredPosition((message_string_values[1]).toFloat(), (message_string_values[2]).toFloat());
+        steppers.setRequiredPosition((message_string_values[3]).toFloat(), (message_string_values[4]).toFloat());
       }
       // If callsign is rtu_pfc or rtu_bfc, send the message to the appropriate flight computer
       else if (callsign == "rtu_pfc")

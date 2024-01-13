@@ -119,7 +119,7 @@ public:
       10045          // This ports should not change
   };
 
-  const int GPS_SEND_INTERVAL = 10000;
+  const int GPS_SEND_INTERVAL = 60000;
   const int ROTATOR_TELEMETRY_APID = 50;
   const String ROTATOR_TELEMETRY_MESSAGE_HEADER_APID = "rtu_rotator," + String(ROTATOR_TELEMETRY_APID);
 
