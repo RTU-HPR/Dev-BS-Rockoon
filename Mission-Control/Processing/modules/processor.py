@@ -77,6 +77,8 @@ class PacketProcessor:
         # Split the message into parts
         command, data, packet_id = converted
         
+        print(f"HELLOOOO: {command}")
+        
         # Check if the command is meant to change something in this program
         self.__process_rotator_command(packet_id, data)
           
@@ -249,7 +251,7 @@ class PacketProcessor:
       elif apid == 20:
         message = f"rtu_bfc,{packet_id},{packet_sequence_count},{current_time}"
       elif apid == 30:
-        message = f"rtu_rotator"
+        message = f"rtu_rotator,{[key for key, value in self.apid_to_type.items() if value == "rotator_calculations"][0]},{self.rotator.rotator_command_index}"
       else:
         print(f"Invalid apid: {apid}")
         raise Exception("Invalid apid")
@@ -362,7 +364,7 @@ class PacketProcessor:
         
         if self.pfc_telemetry["gps_latitude"] != None:
           self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
-          message = f"calculations,60,{self.pfc_calculations_index},{self.pfc_calculations['gps_vertical_speed']},{self.pfc_calculations['baro_vertical_speed']},{self.pfc_calculations['horizontal_speed']},{self.pfc_calculations['gps_total_speed']},{self.pfc_calculations['ground_distance_to_rotator']},{self.pfc_calculations['straight_line_distance_to_rotator']}"
+          message = f"calculations,{[key for key, value in self.apid_to_type.items() if value == "pfc_calculations"][0]},{self.pfc_calculations_index},{self.pfc_calculations['gps_vertical_speed']},{self.pfc_calculations['baro_vertical_speed']},{self.pfc_calculations['horizontal_speed']},{self.pfc_calculations['gps_total_speed']},{self.pfc_calculations['ground_distance_to_rotator']},{self.pfc_calculations['straight_line_distance_to_rotator']}"
     
           converted = self.convert_message_to_ccsds(message)
           if converted is None:
@@ -391,7 +393,7 @@ class PacketProcessor:
         
         if self.bfc_telemetry["gps_latitude"] != None:
           self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
-          message = f"calculations,70,{self.bfc_calculations_index},{self.bfc_calculations['gps_vertical_speed']},{self.bfc_calculations['baro_vertical_speed']},{self.bfc_calculations['horizontal_speed']},{self.bfc_calculations['gps_total_speed']},{self.bfc_calculations['ground_distance_to_rotator']},{self.bfc_calculations['straight_line_distance_to_rotator']}"
+          message = f"calculations,{[key for key, value in self.apid_to_type.items() if value == "bfc_calculations"][0]},{self.bfc_calculations_index},{self.bfc_calculations['gps_vertical_speed']},{self.bfc_calculations['baro_vertical_speed']},{self.bfc_calculations['horizontal_speed']},{self.bfc_calculations['gps_total_speed']},{self.bfc_calculations['ground_distance_to_rotator']},{self.bfc_calculations['straight_line_distance_to_rotator']}"
     
           converted = self.convert_message_to_ccsds(message)
           if converted is None:

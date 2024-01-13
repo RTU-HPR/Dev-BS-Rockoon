@@ -12,12 +12,12 @@ local_ip_address = gethostbyname(hostname)
 # APID can be from 0 to 255
 # Telemetry package apids
 APID_TO_TYPE = {
+  # Rotator
+  50: "rotator_position",
   # Calculations
   60: "pfc_calculations",
   70: "bfc_calculations",
   80: "rotator_calculations",
-  # Rotator
-  50: "rotator_position",
   # PFC
   100: "pfc_essential",
   101: "pfc_full",
@@ -123,9 +123,8 @@ CALCULATION_MESSAGE_STRUCTURE = {
 # CONNECTIONS
 YAMCS_TM_ADDRESS = ('localhost', 10015)
 YAMCS_TC_ADDRESS = ('localhost', 10025)
-# TRANSCEIVER_TC_ADDRESS = ('192.168.251.159', 10045) # Rotator heltec
-#TRANSCEIVER_TC_ADDRESS = ('192.168.251.61', 10045) # Some other heltec
 TRANSCEIVER_TM_ADDRESS = (str(local_ip_address), 10035)
-TRANSCEIVER_TC_ADDRESS = ('192.168.236.61', 10045)
+TRANSCEIVER_TC_ADDRESS = ('192.168.236.61', 10045) # Some random heltec
+#TRANSCEIVER_TC_ADDRESS = ('192.168.236.159', 10045) # Heltec inside rotator box
 CYCLE_TIME = 24 # Seconds
-MAP_SERVER_PORT = 9000
+MAP_SERVER_PORT = 9500

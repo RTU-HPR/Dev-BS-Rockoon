@@ -1,6 +1,7 @@
 from time import sleep
 from astropy.coordinates import EarthLocation
 import numpy as np
+from config import APID_TO_TYPE
 
 class Rotator:
   def __init__(self):
@@ -17,6 +18,7 @@ class Rotator:
     # Commands
     self.rotator_command = ""
     self.rotator_last_command = ""
+    self.rotator_command_index = 1
     
   def control_rotator(self):
     # Check if new angles are required
@@ -81,7 +83,7 @@ class Rotator:
     
   def create_rotator_command(self):
     self.rotator_last_command = self.rotator_command
-    self.rotator_command = f"rtu_rotator,{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
+    self.rotator_command = f"rtu_rotator,{[key for key, value in APID_TO_TYPE.items() if value == "rotator_calculations"][0]},{self.rotator_command_index},{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
     
   def set_target(self, target):
     print(f"Setting rotator target from {self.rotator_target} to {target}")

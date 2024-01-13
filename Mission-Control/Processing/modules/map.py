@@ -30,7 +30,6 @@ class Map:
   def update_map(self) -> None:
     if self.map_update_required:
       self.create_map()
-      # After the map is created, wait at least 30 seconds before updating it again
     sleep(0.1)
   
   def create_map(self) -> None:
@@ -58,7 +57,7 @@ class Map:
             location=self.ballon_coordinates[0],
             popup=f"{self.ballon_coordinates[0][0]}, {self.ballon_coordinates[0][11]}",
             tooltip="Balloon starting position",
-            icon=folium.Icon(color="red"),
+            icon=folium.Icon(color="darkred"),
         ).add_to(m)
 
         # Last position
@@ -89,14 +88,14 @@ class Map:
             location=self.payload_coordinates[0],
             popup=f"{self.payload_coordinates[0][0], self.payload_coordinates[0][1]}",
             tooltip="Payload starting position",
-            icon=folium.Icon(color="blue"),
+            icon=folium.Icon(color="darkblue"),
         ).add_to(m)
 
         # Last position
         folium.Marker(
             location=self.payload_coordinates[-1],
             popup=f"{self.payload_coordinates[-1][0], self.payload_coordinates[-1][1]}",
-            tooltip="Payload starting position",
+            tooltip="Payload last position",
             icon=folium.Icon(color="blue"),
         ).add_to(m)
       
@@ -120,7 +119,7 @@ class Map:
             location=self.prediction_coordinates[0],
             popup=f"{self.prediction_coordinates[0][0], self.prediction_coordinates[0][1]}",
             tooltip="Prediction starting point",
-            icon=folium.Icon(color="cyan"),
+            icon=folium.Icon(color="darkpurple"),
         ).add_to(m)
 
         # Last position
@@ -128,7 +127,7 @@ class Map:
             location=self.prediction_coordinates[-1],
             popup=f"{self.prediction_coordinates[-1][1], self.prediction_coordinates[-1][1]}",
             tooltip="Prediction landing point",
-            icon=folium.Icon(color="cyan"),
+            icon=folium.Icon(color="purple"),
         ).add_to(m)
       
         # Trajectory
@@ -173,13 +172,10 @@ class Map:
     path = os.path.join(os.path.dirname(__file__), "../templates/map.html")
     m.save(path)
     
-    # Pass map HTML text to BeautifulSoup, returns a soup object.
     soup = BeautifulSoup(open(path), 'html.parser')
-    # Find head section and append the 'tab_icon" html. Favicon links must be in the <head> section.
     head = soup.find('head')
     if head:
-      head.append(BeautifulSoup("""<meta http-equiv="refresh" content="5">""", 'html.parser'))  # Needs to be parsed as html by BeautifulSoup to work.
-    # Overwrite the edited html to the MyMap.html file
+      head.append(BeautifulSoup("""<meta http-equiv="refresh" content="30">""", 'html.parser'))  # Needs to be parsed as html by BeautifulSoup to work.
     with open(path, 'w') as html_file:
       html_file.write(str(soup))
     

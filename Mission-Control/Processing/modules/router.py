@@ -49,9 +49,19 @@ class Router:
     
   def send_rotator_command_to_transceiver(self):
     if self.rotator.rotator_last_command != self.rotator.rotator_command:
+      converted = self.processor.convert_message_to_ccsds(self.rotator.rotator_command)
+      if converted is None:
+        return
+      
+      # Split the message into parts
+      ccsds, apid, sequence_count = converted
+      self.processor.processed_packets.put(ccsds)
+      self.rotator.rotator_command_index += 1
+      
       self.connection.sendable_to_transceiver_messages.put(self.rotator.rotator_command)
       self.rotator.rotator_last_command = self.rotator.rotator_command
-      print(f"Rotator command sent: {self.rotator.rotator_command}")
+      
+      print(f"Rotator command sent. Angles: {self.rotator.rotator_command.split(',')[3:]}")
     sleep(0.1)
     
   def update_rotator_data(self):
