@@ -124,5 +124,5 @@ YAMCS_TC_ADDRESS = ('localhost', 10025)
 TRANSCEIVER_TM_ADDRESS = (str(local_ip_address), 10035)
 TRANSCEIVER_TC_ADDRESS = ('192.168.236.61', 10045) # Some random heltec
 #TRANSCEIVER_TC_ADDRESS = ('192.168.236.159', 10045) # Heltec inside rotator box
-CYCLE_TIME = 24 # Seconds
+CYCLE_TIME = 20 # Seconds
 MAP_SERVER_PORT = 9500
