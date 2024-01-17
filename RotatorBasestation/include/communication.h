@@ -29,10 +29,11 @@ public:
 
   /**
    * @brief Sends the provided message using LoRa
-   * @param msg Message to send
+   * @param bytes The message to send
+   * @param size The size of the message
    * @return Whether the message was sent successfully
    */
-  bool sendRadio(String msg);
+  bool sendRadio(byte *bytes, size_t size);
 
   void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);

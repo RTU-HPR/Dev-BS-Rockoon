@@ -5,6 +5,8 @@
 #include <gps.h>
 #include <communication.h>
 
+#include <Ccsds_packets.cpp>
+
 Config config;
 Steppers steppers;
 Gps gps;
@@ -46,6 +48,9 @@ void setup()
 
 void loop()
 {
+  // Move the steppers
+  steppers.moveSteppers();
+
   // Update the GPS
   gps.readGps();
 
@@ -78,69 +83,114 @@ void loop()
   }
 
   // Variables for the message
-  String msg = "";
-  float rssi = 1;
+  byte *msg = new byte[256];
+  uint16_t msg_length = 0;
+  float rssi = 0;
   float snr = 0;
   double frequency = 0;
   bool checksum_good = false;
 
-  // Check for any messages from Radio
-  if (communication._radio->receive(msg, rssi, snr, frequency))
+  if (communication._radio->receive_bytes(msg, msg_length, rssi, snr, frequency))
   {
     // Check if checksum matches
-    if (communication._radio->check_checksum(msg))
+    if (check_crc_16_cciit_of_ccsds_packet(msg, msg_length))
     {
       checksum_good = true;
     }
-  }
 
-  // Check for any messages from PC
-  if (Serial.available() > 0)
-  {
-    // Read the message from the Serial port
-    msg = Serial.readString();
-    // Remove any line ending symbols
-    msg.trim();
-
-    // Set the flags
-    checksum_good = true;
-  }
-
-  // Check if the message is not empty and the checksum is good
-  if (msg != "" && checksum_good)
-  {
-    // Print the received message
-    if (rssi < 0)
+    if (checksum_good)
     {
-      Serial.print("RADIO MESSAGE | RSSI: " + String(rssi) + " | SNR: " + String(snr) + " FREQUENCY: " + String(frequency, 8) + " | MSG: ");
+      // Print the received message
+      Serial.print("RSSI: " + String(rssi) + " | SNR: " + String(snr) + " | FREQUENCY: " + String(frequency, 8) + " | MSG: ");
+      // Print as hex
+      for (size_t i = 0; i < msg_length; i++)
+      {
+        Serial.print(msg[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+
+      // Append RSSI and SNR to message
+      Converter rssi_converter;
+      rssi_converter.f = rssi;
+      msg[msg_length - 2] = rssi_converter.b[3];
+      msg[msg_length - 1] = rssi_converter.b[2];
+      msg[msg_length + 0] = rssi_converter.b[1];
+      msg[msg_length + 1] = rssi_converter.b[0];
+
+      Converter snr_converter;
+      snr_converter.f = snr;
+      msg[msg_length + 2] = snr_converter.b[3];
+      msg[msg_length + 3] = snr_converter.b[2];
+      msg[msg_length + 4] = snr_converter.b[1];
+      msg[msg_length + 5] = snr_converter.b[0];
+
+      msg_length += 6 + 2; // Added 6 bytes for RSSI and SNR, 2 bytes for new checksum
+
+      // Add the new checksum to the message
+      add_crc_16_cciit_to_ccsds_packet(msg, msg_length);
+
+      // Parse the message
+      uint16_t apid = 0;
+      uint16_t sequence_count = 0;
+      uint32_t gps_epoch_time = 0;
+      uint16_t subseconds = 0;
+      byte *packet_data = new byte[msg_length - 12];
+      uint16_t packet_data_length = 0;
+      parse_ccsds(msg, apid, sequence_count, gps_epoch_time, subseconds, packet_data, packet_data_length);
+      
+      // Print the message
+      if (apid == 100 || apid == 200)
+      {
+        Serial.print("Telemetry message received: ");
+        Converter data_values[6];
+        extract_ccsds_data_values(packet_data, data_values, "float,float,float,float,uint32,uint32");
+        for (size_t i = 0; i < 6; i++)
+        {
+          if (i == 4 || i == 5)
+          {
+            Serial.print(data_values[i].i32);
+          }
+          else
+          {
+            if (i == 0 || i == 1)
+            {
+              Serial.print(data_values[i].f, 6);
+            }
+            else
+            {
+              Serial.print(data_values[i].f, 2);
+            }
+          }
+          Serial.print(" ");
+        }
+        Serial.println();
+      }
+
+      // If connected to WiFi send over UDP
+      if (communication.connecetedToWiFi && communication.remoteIpKnown)
+      {
+        communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
+        for (size_t i = 0; i < msg_length; i++)
+        {
+          communication.tmUdp.write(msg[i]);
+        }
+        communication.tmUdp.endPacket();
+
+        Serial.println("UDP packet sent");
+      }
+
+      // Free memory
+      delete[] packet_data;
     }
-    else
+    else if (!checksum_good)
     {
-      Serial.print("PC COMMAND | MSG: ");
-    }
-    Serial.println(msg);
-
-    // Append RSSI and SNR to message
-    msg += "," + String(rssi, 2) + "," + String(snr, 2);
-
-    // If connected to WiFi send over UDP
-    if (communication.connecetedToWiFi && communication.remoteIpKnown)
-    {
-      // Convert String to char array
-      char msgArray[msg.length()];
-      msg.toCharArray(msgArray, sizeof(msgArray));
-
-      communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
-      communication.tmUdp.print(msgArray);
-      communication.tmUdp.endPacket();
-
-      Serial.println("UDP packet sent");
+      Serial.println("Packet with invalid checksum received!");
     }
   }
-  else if (msg != "" && !checksum_good)
-  {
-    Serial.println("Command with invalid checksum received: " + msg);
-  }
+  
+  // Free memory
+  delete[] msg; // VERY IMPORTANT, otherwise a significant memory leak will occur
 
   // If connected to WiFi, check for any messages from UDP
   if (communication.connecetedToWiFi)
@@ -149,17 +199,16 @@ void loop()
     if (packetSize)
     {
       // Read the packet into packetBuffer
-      char packetBuffer[packetSize];
+      byte packetBuffer[packetSize];
       communication.tcUdp.read(packetBuffer, packetSize);
 
-      // Remove the last character from the packet buffer
-      // The last character is a sacrifical character to solve a bug where the last character was corrupted
+      // Remove the last byte from the packet buffer
+      // The last byte is a sacrifical one to solve a bug where the last byte was corrupted
       packetBuffer[packetSize - 1] = '\0';
+      packetSize -= 1;
 
-      // Create a string from the packet buffer
-      String receivedMsg = String(packetBuffer);
-
-      if (receivedMsg == "UDP Heartbeat")
+      // Check if heartbeat message was received
+      if (String((char*)packetBuffer) == "UDP Heartbeat")
       {
         if (!communication.remoteIpKnown)
         {
@@ -171,38 +220,40 @@ void loop()
         communication.tmUdp.endPacket();
         return;
       }
-      Serial.println("UDP packet received: " + receivedMsg);
 
-      // Get the callsign from the message
-      int commaIndex = receivedMsg.indexOf(',');
-      String callsign = receivedMsg.substring(0, commaIndex);
+      // A CCSDS Telecommand packet was received
+      uint16_t apid = 0;
+      uint16_t sequence_count = 0;
+      uint32_t gps_epoch_time = 0;
+      uint16_t subseconds = 0;
+      byte *packet_data = new byte[packetSize - 12];
+      uint16_t packet_data_length = 0;
+      parse_ccsds(packetBuffer, apid, sequence_count, gps_epoch_time, subseconds, packet_data, packet_data_length);
 
-      // If callsign is rtu_rotator, parse the message and set the required position
-      if (callsign == "rtu_rotator")
-      {
-        Serial.println("Rotator angles received");
-        String message_string_values[5];
-        communication.parseString(receivedMsg, message_string_values, 5);
-        steppers.setRequiredPosition((message_string_values[3]).toFloat(), (message_string_values[4]).toFloat());
-      }
-      // If callsign is rtu_pfc or rtu_bfc, send the message to the appropriate flight computer
-      else if (callsign == "rtu_pfc")
+      // According to the apid do the appropriate action
+      if (apid == 10)
       {
         Serial.println("PFC Command received. Sending to Payload flight computer");
-        communication.sendRadio(receivedMsg);
+        communication._radio->transmit_bytes(packetBuffer, packetSize);
       }
-      else if (callsign == "rtu_bfc")
+      else if (apid == 20)
       {
         Serial.println("BFC Command received. Sending to Balloon flight computer");
-        communication.sendRadio(receivedMsg);
+        communication._radio->transmit_bytes(packetBuffer, packetSize);
+      }
+      else if (apid == 30)
+      {
+        Serial.println("Rotator angles received");
+        Converter data_values[2];
+        extract_ccsds_data_values(packet_data, data_values, "float,float");
+        steppers.setRequiredPosition(data_values[0].f, data_values[1].f);
       }
       else
       {
-        Serial.println("Unknown callsign! Message discarded");
+        Serial.println("Unknown telecommand! Telecommand discarded!");
       }
+      // Free memory
+      delete[] packet_data;
     }
-
-    // Move the steppers
-    steppers.moveSteppers();
   }
 }

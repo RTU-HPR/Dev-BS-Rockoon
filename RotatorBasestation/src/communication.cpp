@@ -15,22 +15,6 @@ bool Communication::beginRadio(RadioLib_Wrapper<radio_module>::Radio_Config &rad
   return true;
 }
 
-bool Communication::sendRadio(String msg)
-{
-  if (!_radio->get_initialized())
-  {
-    return false;
-  }
-
-  String packet = msg;
-  // This will add the checksum, endline and dashstar characters ("*xxxx\n")
-  _radio->add_checksum(packet);
-  // Send the message
-  bool status = _radio->transmit(packet);
-
-  return status;
-}
-
 void Communication::beginWiFi(Config::WiFi_Config &wifi_config)
 {
   // Copy the config
@@ -110,9 +94,9 @@ void Communication::WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t i
     WIFI_REASON_HANDSHAKE_TIMEOUT        = 204,
   */
   connecetedToWiFi = false;
-  Serial.print("WiFi lost connection. Reason: ");
-  Serial.println(info.wifi_sta_disconnected.reason);
-  Serial.println("Reconnecting");
+  // Serial.print("WiFi lost connection. Reason: ");
+  // Serial.println(info.wifi_sta_disconnected.reason);
+  // Serial.println("Reconnecting");
 
   // Stop UDP and WiFI
   tmUdp.stop();

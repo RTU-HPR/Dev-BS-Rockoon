@@ -8,7 +8,7 @@
 #include <TinyGPS++.h>
 #include <AccelStepper.h>
 
-// Our wrappers
+// Our libraries
 #include <RadioLib_wrapper.h>
 
 // Used radio module
