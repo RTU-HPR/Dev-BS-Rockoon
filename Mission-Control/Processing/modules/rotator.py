@@ -10,8 +10,8 @@ class Rotator:
     self.rotator_control_mode = "auto"
     self.rotator_position_mode = "auto"
     # Position
-    self.rotator_position = {"latitude": 56.952540, "longitude": 24.081279, "altitude": 20.0}
-    self.rotator_target_position = {"latitude": 56.951451, "longitude": 24.113470, "altitude": 50.0}
+    self.rotator_position = {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0}
+    self.rotator_target_position = {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0}
     # Angles
     self.rotator_angles = {"azimuth": 0.0, "elevation": 0.0}
     self.new_angles_required = False
@@ -29,6 +29,8 @@ class Rotator:
     sleep(0.1)
 
   def calculate_rotator_angles(self):
+    if self.rotator_position["latitude"] == 0.0 and self.rotator_position["longitude"] == 0.0 and self.rotator_position["altitude"] == 0.0 or self.rotator_target_position["latitude"] == 0.0 and self.rotator_target_position["longitude"] == 0.0 and self.rotator_target_position["altitude"] == 0.0:
+      return
     # Refrences: 
     # * https://gis.stackexchange.com/questions/58923/calculating-view-angle
     # * https://stackoverflow.com/questions/60515719/are-there-functions-for-converting-earth-coordinate-systems-within-the-standard
@@ -83,7 +85,7 @@ class Rotator:
     
   def create_rotator_command(self):
     self.rotator_last_command = self.rotator_command
-    self.rotator_command = f"rtu_rotator,{[key for key, value in APID_TO_TYPE.items() if value == "rotator_calculations"][0]},{self.rotator_command_index},{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
+    self.rotator_command = f"{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
     
   def set_target(self, target):
     print(f"Setting rotator target from {self.rotator_target} to {target}")

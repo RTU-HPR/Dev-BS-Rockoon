@@ -36,38 +36,42 @@ class ConnectionManager:
     Send a packet to the base station.
     """
     packet = self.sendable_to_transceiver_messages.get()
+    print(packet)
     try:
-      if "rtu_rotator" in packet and len(packet.split(",")) > 5:
-        raise Exception("Not sendable")
-      # If the message is meant for rotator, send it immediately
-      if "rtu_rotator" not in packet:
+      # Check if we should wait until the next cycle time to send the packet
+      if packet[0]:
         # Wait until the next cycle time to send the packet
-        # Cycle starts when epoch time is divisible by CYCLE_TIME (24 seconds)
+        # Cycle starts when epoch time is divisible by CYCLE_TIME (12 seconds)
         if not int(time.mktime(time.localtime())) % CYCLE_TIME == 0:
           print(f"Waiting for cycle time to start in {CYCLE_TIME - int(time.mktime(time.localtime())) % CYCLE_TIME} seconds to send a command to transceiver")
         while not (int(time.mktime(time.localtime())) % CYCLE_TIME == 0):
           time.sleep(0.1)
-        # Send the packet 3 seconds after the cycle time start
-        time.sleep(3)
-      print(f"Sending message to transceiver: {packet}")
-      self.transceiver_tc_socket.sendto(packet.encode(), self.transceiver_tc_address)
+        # Send the packet 1 seconds after the cycle time start
+        time.sleep(1)
+      self.transceiver_tc_socket.sendto(packet[2], self.transceiver_tc_address)
       self.sendable_to_transceiver_messages.task_done()
-      print("Message sent to transceiver")
+      print("Packet sent to transceiver")
     except Exception as e:
       self.sendable_to_transceiver_messages.task_done()
-      if "Not sendable" not in str(e):
-        print(f"An error occurred while sending to transceiver: {e}")
+      print(f"An error occurred while sending to transceiver: {e}")
   
   def receive_from_transceiver(self) -> None:
     """
     Continously receive messages from the base station.
     """
     try:
+      # Receive a message from the transceiver
       message, addr = self.transceiver_tm_socket.recvfrom(4096)
-      message = message.decode("ascii")
-      if "Heartbeat" in message:
-        print(f"WiFi RSSI: {message.split(",")[1]} dBm | New communication cycle start in {CYCLE_TIME - int(time.mktime(time.localtime())) % CYCLE_TIME} seconds")
-      else:
+      
+      # Try to decode the message to see if it is a heartbeat
+      try:
+        message = message.decode()
+        if "Heartbeat":
+          print(f"WiFi RSSI: {message.split(",")[1]} dBm | Cycle start in {CYCLE_TIME - int(time.mktime(time.localtime())) % CYCLE_TIME} seconds")
+        else:
+          raise Exception()
+      # If the message is not a heartbeat, put it in the queue
+      except:
         self.received_messages.put(message)
         
     except socket.timeout:
@@ -81,9 +85,9 @@ class ConnectionManager:
     """
     packet = self.sendable_to_yamcs_messages.get()
     try:
-      self.yamcs_tm_socket.sendto(packet, self.yamcs_tm_address)
+      self.yamcs_tm_socket.sendto(packet[2], self.yamcs_tm_address)
       self.sendable_to_yamcs_messages.task_done()
-      print("Message sent to YAMCS")
+      print("Packet sent to YAMCS")
     except Exception as e:
       self.sendable_to_yamcs_messages.task_done()
       print(f"An error occurred while sending to YAMCS: {e}")

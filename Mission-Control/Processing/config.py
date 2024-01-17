@@ -23,8 +23,7 @@ APID_TO_TYPE = {
   101: "pfc_full",
   102: "pfc_info_error",
   103: "pfc_format",
-  104: "pfc_heater",
-  105: "pfc_ejection",
+  104: "pfc_ejection",
   # BFC
   200: "bfc_essential",
   201: "bfc_full",
@@ -38,7 +37,9 @@ APID_TO_TYPE = {
 TELECOMMAND_APID = {
   "pfc": 10,
   "bfc": 20,
-  "rotator": 30
+  "rotator": 30,
+  # Non yamcs
+  "rotator_angles": 40
 }
 
 # Command packet ids
@@ -47,8 +48,7 @@ PACKETID_TO_TYPE = {
   1000: "pfc_complete_data_request",
   1001: "pfc_info_error_request",
   1002: "pfc_format_storage_request", 
-  1003: "pfc_heater_set_mode_request",
-  1004: "pfc_ejection_request",
+  1003: "pfc_ejection_request",
   # BFC
   2000: "bfc_complete_data_request",
   2001: "bfc_info_error_request",
@@ -56,49 +56,39 @@ PACKETID_TO_TYPE = {
   2003: "bfc_rwc_set_mode_request",
   2004: "bfc_ejection_request",
   # Rotator
-  3000: "rotator_target_pfc_request",
-  3001: "rotator_target_bfc_request",
-  3002: "rotator_auto_tracking_request",
-  3003: "rotator_auto_rotator_position_request",
-  3004: "rotator_manual_rotator_position_request",
-  3005: "rotator_manual_angles_request",
-  3006: "rotator_manual_target_coordinates_request",
+  3000: "rotator_set_target_request",
+  3001: "rotator_auto_tracking_request",
+  3002: "rotator_auto_rotator_position_request",
+  3003: "rotator_manual_rotator_position_request",
+  3004: "rotator_manual_angles_request",
+  3005: "rotator_manual_target_coordinates_request",
+  # Non yamcs
+  3100: "rotator_angles_request",
 }
 
 # Message structures
 TELEMETRY_MESSAGE_STRUCTURE = {
-  "pfc": ["callsign",
-          "apid",
-          "index",
-          "gps_latitude",
-          "gps_longitude",
-          "gps_altitude",
-          "baro_altitude",
-          "gps_satellites",
-          "gps_time",
-          "info_error_in_queue",
-          "rssi",
-          "snr"
-          ],
-  "bfc": ["callsign",
-          "apid",
-          "index",
-          "gps_latitude",
-          "gps_longitude",
-          "gps_altitude",
-          "baro_altitude",
-          "gps_satellites",
-          "gps_time",
-          "info_error_in_queue",
-          "rssi",
-          "snr"
-          ],
-  "rotator": ["callsign",
-              "apid",
-              "index", 
-              "latitude",
-              "longitude",
-              "altitude"]
+  "pfc": [("float", "gps_latitude"),
+          ("float", "gps_longitude"),
+          ("float", "gps_altitude"),
+          ("float", "baro_altitude"),
+          ("int", "gps_satellites"),
+          ("int", "info_error_in_queue"),
+          ("float", "rssi"),
+          ("float", "snr")],
+  
+  "bfc": [("float", "gps_latitude"),
+          ("float", "gps_longitude"),
+          ("float", "gps_altitude"),
+          ("float", "baro_altitude"),
+          ("int", "gps_satellites"),
+          ("int", "info_error_in_queue"),
+          ("float", "rssi"),
+          ("float", "snr")],
+  
+  "rotator": [("float", "latitude"),
+              ("float", "longitude"),
+              ("float", "altitude"),]
 }
 
 CALCULATION_MESSAGE_STRUCTURE = {
@@ -124,5 +114,6 @@ YAMCS_TC_ADDRESS = ('localhost', 10025)
 TRANSCEIVER_TM_ADDRESS = (str(local_ip_address), 10035)
 TRANSCEIVER_TC_ADDRESS = ('192.168.236.61', 10045) # Some random heltec
 #TRANSCEIVER_TC_ADDRESS = ('192.168.236.159', 10045) # Heltec inside rotator box
-CYCLE_TIME = 20 # Seconds
 MAP_SERVER_PORT = 9500
+
+CYCLE_TIME = 12 # Seconds

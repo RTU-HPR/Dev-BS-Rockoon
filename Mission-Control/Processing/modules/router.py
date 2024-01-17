@@ -2,7 +2,9 @@ from modules.processor import PacketProcessor
 from modules.connection_manager import ConnectionManager
 from modules.rotator import Rotator
 from modules.map import Map
+from modules.ccsds import convert_message_to_ccsds
 from time import sleep
+from config import TELECOMMAND_APID, PACKETID_TO_TYPE
 
 class Router:
   def __init__(self, processor: PacketProcessor, connection: ConnectionManager, rotator: Rotator, map: Map) -> None:
@@ -37,31 +39,29 @@ class Router:
   def send_processed_data(self):
     try:
       packet = self.processor.processed_packets.get()
-      if isinstance(packet, str):
+      if packet[1] == "transceiver":
         self.connection.sendable_to_transceiver_messages.put(packet)
-      elif isinstance(packet, bytearray):
+      elif packet[1] == "yamcs":
         self.connection.sendable_to_yamcs_messages.put(packet)
-      else:
-        raise TypeError("Packet must be a string or bytearray")  
       self.processor.processed_packets.task_done()
     except Exception as e:
       print(f"An error occurred while sending processed data: {e}")
     
   def send_rotator_command_to_transceiver(self):
     if self.rotator.rotator_last_command != self.rotator.rotator_command:
-      converted = self.processor.convert_message_to_ccsds(self.rotator.rotator_command)
-      if converted is None:
+      apid = TELECOMMAND_APID["rotator_angles"]
+      # As this is a command, we need to add packet id
+      data_str = str([key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_angles_request"][0])
+      data_str += "," + self.rotator.rotator_command
+      ccsds = convert_message_to_ccsds(apid, self.rotator.rotator_command_index, data_str) 
+      if ccsds is None:
         return
       
-      # Split the message into parts
-      ccsds, apid, sequence_count = converted
-      self.processor.processed_packets.put(ccsds)
+      self.processor.processed_packets.put((False, "transceiver", ccsds))
       self.rotator.rotator_command_index += 1
-      
-      self.connection.sendable_to_transceiver_messages.put(self.rotator.rotator_command)
       self.rotator.rotator_last_command = self.rotator.rotator_command
       
-      print(f"Rotator command sent. Angles: {self.rotator.rotator_command.split(',')[3:]}")
+      print(f"Rotator command sent: Azimuth: {float(self.rotator.rotator_command.split(',')[0])} | Elevation: {float(self.rotator.rotator_command.split(',')[1])}")
     sleep(0.1)
     
   def update_rotator_data(self):

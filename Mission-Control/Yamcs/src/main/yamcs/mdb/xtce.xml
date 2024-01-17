@@ -326,23 +326,6 @@
 				</BaseContainer>
 			</SequenceContainer>
 
-      <!-- Heater -->
-      <SequenceContainer name="PayloadHeaterReceivedPacket">
-        <EntryList>
-          <ParameterRefEntry parameterRef="PFC_Heater_Command_Excecuted" />
-          <ParameterRefEntry parameterRef="PFC_Rssi" />
-          <ParameterRefEntry parameterRef="PFC_Snr" />
-        </EntryList>
-				<BaseContainer containerRef="TelemetryPacket">
-					<RestrictionCriteria>
-						<ComparisonList>
-							<Comparison value="Present" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="104" parameterRef="CCSDS_Packet_ID/APID" />
-						</ComparisonList>
-					</RestrictionCriteria>
-				</BaseContainer>
-			</SequenceContainer>
-
       <!-- Ejection -->
 			<SequenceContainer name="PayloadEjectionChargeReceivedPacket">
         <EntryList>
@@ -354,7 +337,7 @@
 					<RestrictionCriteria>
 						<ComparisonList>
 							<Comparison value="Present" parameterRef="CCSDS_Packet_ID/SecHdrFlag" />
-							<Comparison value="105" parameterRef="CCSDS_Packet_ID/APID" />
+							<Comparison value="104" parameterRef="CCSDS_Packet_ID/APID" />
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>
@@ -458,7 +441,7 @@
 				</BaseContainer>
 			</SequenceContainer>
 
-      <!-- Ejection 1 -->
+      <!-- Ejection -->
 			<SequenceContainer name="BalloonEjectionChargeReceivedPacket">
         <EntryList>
           <ParameterRefEntry parameterRef="BFC_Ejection_Charge_Command_Excecuted" />
@@ -608,6 +591,14 @@
 					<Enumeration value="1" label="ON" />
 				</EnumerationList>
 			</EnumeratedArgumentType>
+      <EnumeratedArgumentType name="Rotator_Target_Type">
+				<UnitSet />
+				<IntegerDataEncoding sizeInBits="8" />
+				<EnumerationList>
+					<Enumeration value="0" label="Payload" />
+					<Enumeration value="1" label="Balloon" />
+				</EnumerationList>
+			</EnumeratedArgumentType>
       <EnumeratedArgumentType name="Ejection_Charge_Channel_Type">
 				<UnitSet />
 				<IntegerDataEncoding sizeInBits="8" />
@@ -719,46 +710,46 @@
 
       <!-- SENDABLE COMMANDS -->
       <!-- PFC -->
-			<MetaCommand name="PayloadCompleteDataRequest">
+			<MetaCommand name="Payload Complete Data Request">
 				<BaseMetaCommand metaCommandRef="PayloadCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1000" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="PayloadCompleteDataRequest">
+				<CommandContainer name="Payload Complete Data Request">
 					<EntryList />
 					<BaseContainer containerRef="PayloadCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="PayloadInfoErrorRequest">
+      <MetaCommand name="Payload Info Error Request">
 				<BaseMetaCommand metaCommandRef="PayloadCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1001" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="PayloadInfoErrorRequest">
+				<CommandContainer name="Payload Info Error Request">
 					<EntryList />
 					<BaseContainer containerRef="PayloadCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="PayloadFormatStorageRequest">
+      <MetaCommand name="Payload Format Storage Request">
 				<BaseMetaCommand metaCommandRef="PayloadCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1002" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="PayloadFormatStorageRequest">
+				<CommandContainer name="Payload Format Storage Request">
 					<EntryList />
 					<BaseContainer containerRef="PayloadCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="PayloadHeaterSetRequest">
+      <!-- <MetaCommand name="PayloadHeaterSetRequest">
         <ArgumentList>
           <Argument argumentTypeRef="Heater_Mode_Type" name="Heater_Mode" />
         </ArgumentList>
@@ -774,18 +765,18 @@
 					<BaseContainer containerRef="PayloadCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
-			</MetaCommand>
+			</MetaCommand> -->
 
-      <MetaCommand name="PayloadEjectionRequest">
+      <MetaCommand name="Payload Ejection Request">
         <ArgumentList>
           <Argument argumentTypeRef="Ejection_Charge_Channel_Type" name="Channel" />
         </ArgumentList>
 				<BaseMetaCommand metaCommandRef="PayloadCommand">
 					<ArgumentAssignmentList>
-						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1004" />
+						<ArgumentAssignment argumentName="Packet_ID" argumentValue="1003" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="PayloadEjectionRequest">
+				<CommandContainer name="Payload Ejection Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="Channel" />
 					</EntryList>
@@ -795,46 +786,46 @@
 			</MetaCommand>
 
       <!-- BFC -->
-      <MetaCommand name="BalloonCompleteDataRequest">
+      <MetaCommand name="Balloon Complete Data Request">
 				<BaseMetaCommand metaCommandRef="BalloonCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="2000" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="BalloonCompleteDataRequest">
+				<CommandContainer name="Balloon Complete Data Request">
 					<EntryList />
 					<BaseContainer containerRef="BalloonCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="BalloonInfoErrorRequest">
+      <MetaCommand name="Balloon Info Error Request">
 				<BaseMetaCommand metaCommandRef="BalloonCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="2001" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="BalloonInfoErrorRequest">
+				<CommandContainer name="Balloon Info Error Request">
 					<EntryList />
 					<BaseContainer containerRef="BalloonCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="BalloonFormatStorageRequest">
+      <MetaCommand name="Balloon Format Storage Request">
 				<BaseMetaCommand metaCommandRef="BalloonCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="2002" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="BalloonFormatStorageRequest">
+				<CommandContainer name="Balloon Format Storage Request">
 					<EntryList />
 					<BaseContainer containerRef="BalloonCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="BalloonRwcModeSetRequest">
+      <MetaCommand name="Balloon Rwc Mode Set Request">
       <ArgumentList>
           <Argument argumentTypeRef="Rwc_Mode_Type" name="RWC_Mode" />
           <Argument argumentTypeRef="float_t" name="RWC_Direction" />
@@ -844,7 +835,7 @@
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="2003" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="BalloonRwcModeSetRequest">
+				<CommandContainer name="Balloon Rwc Mode Set Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="RWC_Mode" />
             <ArgumentRefEntry argumentRef="RWC_Direction" />
@@ -854,7 +845,7 @@
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="BalloonEjectionRequest">
+      <MetaCommand name="Balloon Ejection Request">
         <ArgumentList>
           <Argument argumentTypeRef="Ejection_Charge_Channel_Type" name="Channel" />
         </ArgumentList>
@@ -863,7 +854,7 @@
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="2004" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="BalloonEjectionRequest">
+				<CommandContainer name="Balloon Ejection Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="Channel" />
 					</EntryList>
@@ -873,59 +864,51 @@
 			</MetaCommand>
 
       <!-- ROTATOR -->
-      <MetaCommand name="RotatorTargetPayloadRequest">
+      <MetaCommand name="Rotator Target Request">
+        <ArgumentList>
+          <Argument argumentTypeRef="Rotator_Target_Type" name="Rotator_Target" />
+        </ArgumentList>
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3000" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorTargetPayloadRequest">
-					<EntryList />
+				<CommandContainer name="Rotator Target Request">
+					<EntryList>
+            <ArgumentRefEntry argumentRef="Rotator_Target" />
+					</EntryList>
 					<BaseContainer containerRef="RotatorCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="RotatorTargetBalloonRequest">
+      <MetaCommand name="Rotator Automatic Tracking Request">
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3001" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorTargetBalloonRequest">
+				<CommandContainer name="Rotator Automatic Tracking Request">
 					<EntryList />
 					<BaseContainer containerRef="RotatorCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="RotatorAutomaticTrackingRequest">
+      <MetaCommand name="Rotator Automatic Position Request">
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3002" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorAutomaticTrackingRequest">
+				<CommandContainer name="Rotator Automatic Position Request">
 					<EntryList />
 					<BaseContainer containerRef="RotatorCommandContainer" />
 				</CommandContainer>
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="RotatorAutomaticPositionRequest">
-				<BaseMetaCommand metaCommandRef="RotatorCommand">
-					<ArgumentAssignmentList>
-						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3003" />
-					</ArgumentAssignmentList>
-				</BaseMetaCommand>
-				<CommandContainer name="RotatorAutomaticPositionRequest">
-					<EntryList />
-					<BaseContainer containerRef="RotatorCommandContainer" />
-				</CommandContainer>
-				<DefaultSignificance consequenceLevel="normal" />
-			</MetaCommand>
-
-      <MetaCommand name="RotatorManualPositionRequest">
+      <MetaCommand name="Rotator Manual Position Request">
         <ArgumentList>
           <Argument argumentTypeRef="float_t" name="Rotator_Latitude" />
           <Argument argumentTypeRef="float_t" name="Rotator_Longitude" />
@@ -933,10 +916,10 @@
         </ArgumentList>
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
-						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3004" />
+						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3003" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorManualPositionRequest">
+				<CommandContainer name="Rotator Manual Position Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="Rotator_Latitude" />
             <ArgumentRefEntry argumentRef="Rotator_Longitude" />
@@ -947,17 +930,17 @@
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="RotatorManualAnglesRequest">
+      <MetaCommand name="Rotator Manual Angles Request">
       <ArgumentList>
           <Argument argumentTypeRef="float_t" name="Rotator_Azimuth" />
           <Argument argumentTypeRef="float_t" name="Rotator_Elevation" />
         </ArgumentList>
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
-						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3005" />
+						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3004" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorManualAnglesRequest">
+				<CommandContainer name="Rotator Manual Angles Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="Rotator_Azimuth" />
             <ArgumentRefEntry argumentRef="Rotator_Elevation" />
@@ -967,7 +950,7 @@
 				<DefaultSignificance consequenceLevel="normal" />
 			</MetaCommand>
 
-      <MetaCommand name="RotatorManualTargetCoordinatesRequest">
+      <MetaCommand name="Rotator Manual Target Coordinates Request">
         <ArgumentList>
           <Argument argumentTypeRef="float_t" name="Target_Latitude" />
           <Argument argumentTypeRef="float_t" name="Target_Longitude" />
@@ -975,10 +958,10 @@
         </ArgumentList>
 				<BaseMetaCommand metaCommandRef="RotatorCommand">
 					<ArgumentAssignmentList>
-						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3006" />
+						<ArgumentAssignment argumentName="Packet_ID" argumentValue="3005" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>
-				<CommandContainer name="RotatorManualTargetCoordinatesRequest">
+				<CommandContainer name="Rotator Manual Target Coordinates Request">
 					<EntryList>
             <ArgumentRefEntry argumentRef="Target_Latitude" />
             <ArgumentRefEntry argumentRef="Target_Longitude" />
