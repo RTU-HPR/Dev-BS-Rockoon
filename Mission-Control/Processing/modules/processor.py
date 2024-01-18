@@ -206,33 +206,31 @@ class PacketProcessor:
         else:
           raise Exception(f"Invalid data type: {value[0]}")
         
-        # BFC essential telemetry
-        old_bfc_telemetry_epoch_seconds = self.last_bfc_telemetry_epoch_seconds
-        old_bfc_telemetry_epoch_subseconds = self.last_bfc_telemetry_epoch_subseconds
-        self.last_bfc_telemetry_epoch = epoch_seconds
-        self.last_bfc_telemetry_epoch_subseconds = epoch_subseconds
-        
-        # Calculate time delta from seconds and subseconds
-        time_delta = (self.last_bfc_telemetry_epoch_seconds - old_bfc_telemetry_epoch_seconds) + (self.last_bfc_telemetry_epoch_subseconds - old_bfc_telemetry_epoch_subseconds) / 65536
+      # BFC essential telemetry
+      old_bfc_telemetry_epoch_seconds = self.last_bfc_telemetry_epoch_seconds
+      old_bfc_telemetry_epoch_subseconds = self.last_bfc_telemetry_epoch_subseconds
+      self.last_bfc_telemetry_epoch = epoch_seconds
+      self.last_bfc_telemetry_epoch_subseconds = epoch_subseconds
+      
+      # Calculate time delta from seconds and subseconds
+      time_delta = (self.last_bfc_telemetry_epoch_seconds - old_bfc_telemetry_epoch_seconds) + (self.last_bfc_telemetry_epoch_subseconds - old_bfc_telemetry_epoch_subseconds) / 65536
 
-        # Calculate extra telemetry if position is valid
-        if self.bfc_telemetry["gps_latitude"] != None and self.bfc_telemetry["gps_latitude"] != 0:
-          self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
-          message = ""
-          for key, value in self.bfc_calculations.items():
-            message += f"{value},"
-          message[:-1]
-          
-          apid = [key for key, value in self.apid_to_type.items() if value == "bfc_calculations"][0]
-          
-          ccsds = convert_message_to_ccsds(apid, self.bfc_calculations_index, message)
-          
-          if ccsds is None:
-            return
-          
-          self.processed_packets.put((False, "yamcs", ccsds))
-          self.bfc_calculations_index += 1
-          
+      # Calculate extra telemetry if position is valid
+      if self.bfc_telemetry["gps_latitude"] != None and self.bfc_telemetry["gps_latitude"] != 0:
+        self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
+        
+        message = ",".join([str(x) for x in self.bfc_calculations.values()]) 
+
+        apid = [key for key, value in self.apid_to_type.items() if value == "bfc_calculations"][0]
+        
+        ccsds = convert_message_to_ccsds(apid, self.bfc_calculations_index, message)
+        
+        if ccsds is None:
+          return
+        
+        self.processed_packets.put((False, "yamcs", ccsds))
+        self.bfc_calculations_index += 1
+        
         self.bfc_telemetry = new_telemetry
     except Exception as e:
       print(f"Error updating BFC telemetry: {e}")
