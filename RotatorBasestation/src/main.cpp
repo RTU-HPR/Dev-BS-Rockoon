@@ -5,8 +5,6 @@
 #include <gps.h>
 #include <communication.h>
 
-#include <Ccsds_packets.cpp>
-
 Config config;
 Steppers steppers;
 Gps gps;
@@ -57,34 +55,47 @@ void loop()
   // If gps data is valid and required time has passed, send the gps data over UDP
   if (gps.gps.location.isValid() && gps.gps.time.isValid() && millis() - communication.lastRotatorPositionSendMillis > config.GPS_SEND_INTERVAL)
   {
-    // Create the message
-    String msg = config.ROTATOR_TELEMETRY_MESSAGE_HEADER_APID + "," + String(communication.rotatorPositionMessageIndex) + ",";
-    msg += String(gps.gps.location.lat(), 6) + "," + String(gps.gps.location.lng(), 6) + "," + String(gps.gps.altitude.meters(), 2);
-    // String msg = config.ROTATOR_TELEMETRY_MESSAGE_HEADER_APID + "," + String(communication.rotatorPositionMessageIndex) + ",";
-    // msg += String((float)random(50, 60), 6) + "," + String((float)random(22, 26), 6) + "," + String((float)random(1000, 25000), 2);
+    uint16_t ccsds_packet_length = 0;
 
-    // Convert String to char array
-    char msgArray[msg.length()];
-    msg.toCharArray(msgArray, sizeof(msgArray));
+    // Create the message
+    String data_msg = String(gps.gps.location.lat(), 6) + "," + String(gps.gps.location.lng(), 6) + "," + String(gps.gps.altitude.meters(), 2);
+
+    // Create epoch time from GPS year, month, day, hour, minute, second
+    uint32_t epoch_time = gps.gps.date.year() * 31536000 + gps.gps.date.month() * 2592000 + gps.gps.date.day() * 86400 + gps.gps.time.hour() * 3600 + gps.gps.time.minute() * 60 + gps.gps.time.second();
+    uint16_t subseconds = map(gps.gps.time.centisecond(), 0, 99, 0, 65535);
+
+    // Create the CCSDS packet
+    byte *ccsds = create_ccsds_telemetry_packet(config.ROTATOR_TELEMETRY_APID, gps.rotator_gps_sequence_count, epoch_time, subseconds, data_msg, ccsds_packet_length);
 
     // Send the message over UDP
     if (communication.connecetedToWiFi && communication.remoteIpKnown)
     {
       communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
-      communication.tmUdp.print(msgArray);
+      for (size_t i = 0; i < ccsds_packet_length; i++)
+      {
+        communication.tmUdp.write(ccsds[i]);
+      }
       communication.tmUdp.endPacket();
+
+      gps.rotator_gps_sequence_count++;
     }
 
     // Print the message
-    Serial.println("Rotator GPS position UDP packet sent: " + msg);
+    Serial.println("Rotator GPS position sent");
 
     // Update the last send time
     communication.lastRotatorPositionSendMillis = millis();
+
+    // Free memory
+    delete[] ccsds;
   }
 
   // Variables for the message
   byte *msg = new byte[256];
   uint16_t msg_length = 0;
+  float flight_computer_latitude = 0;
+  float flight_computer_longitude = 0;
+  float flight_computer_altitude = 0;
   float rssi = 0;
   float snr = 0;
   double frequency = 0;
@@ -101,7 +112,7 @@ void loop()
     if (checksum_good)
     {
       // Print the received message
-      Serial.print("RSSI: " + String(rssi) + " | SNR: " + String(snr) + " | FREQUENCY: " + String(frequency, 8) + " | MSG: ");
+      Serial.print("TELEMETRY PACKET | HEX: ");
       // Print as hex
       for (size_t i = 0; i < msg_length; i++)
       {
@@ -135,36 +146,27 @@ void loop()
       uint16_t sequence_count = 0;
       uint32_t gps_epoch_time = 0;
       uint16_t subseconds = 0;
-      byte *packet_data = new byte[msg_length - 12];
+      byte *packet_data = new byte[msg_length];
       uint16_t packet_data_length = 0;
-      parse_ccsds(msg, apid, sequence_count, gps_epoch_time, subseconds, packet_data, packet_data_length);
-      
+      parse_ccsds_telemetry(msg, apid, sequence_count, gps_epoch_time, subseconds, packet_data, packet_data_length);
+
       // Print the message
       if (apid == 100 || apid == 200)
       {
-        Serial.print("Telemetry message received: ");
         Converter data_values[6];
         extract_ccsds_data_values(packet_data, data_values, "float,float,float,float,uint32,uint32");
-        for (size_t i = 0; i < 6; i++)
-        {
-          if (i == 4 || i == 5)
-          {
-            Serial.print(data_values[i].i32);
-          }
-          else
-          {
-            if (i == 0 || i == 1)
-            {
-              Serial.print(data_values[i].f, 6);
-            }
-            else
-            {
-              Serial.print(data_values[i].f, 2);
-            }
-          }
-          Serial.print(" ");
-        }
-        Serial.println();
+        // Update the flight computer position. TODO: Display on the LCD
+        flight_computer_latitude = data_values[0].f;
+        flight_computer_longitude = data_values[1].f;
+        flight_computer_altitude = data_values[2].f;
+
+        Serial.println("Apid: " + String(apid) + " | Sequence Count: " + String(sequence_count) + " | GPS Epoch: " + String(gps_epoch_time) + "." + String(subseconds) + " | RSSI: " + String(rssi) + " | SNR: " + String(snr) + " | Frequency: " + String(frequency, 8));
+        Serial.println("Latitude: " + String(data_values[0].f, 6) + " | Longitude: " + String(data_values[1].f, 6) + " | Altitude: " + String(data_values[2].f));
+        Serial.println("Baro Altitude: " + String(data_values[3].f) + " | Satellites: " + String(data_values[4].i32) + " | Info/Error in Queue: " + (data_values[5].i32 == 0 ? "False" : "True"));
+      }
+      else
+      {
+        Serial.println("Unknown telemetry apid received: " + String(apid));
       }
 
       // If connected to WiFi send over UDP
@@ -176,8 +178,6 @@ void loop()
           communication.tmUdp.write(msg[i]);
         }
         communication.tmUdp.endPacket();
-
-        Serial.println("UDP packet sent");
       }
 
       // Free memory
@@ -187,10 +187,11 @@ void loop()
     {
       Serial.println("Packet with invalid checksum received!");
     }
+    Serial.println();
   }
-  
+
   // Free memory
-  delete[] msg; // VERY IMPORTANT, otherwise a significant memory leak will occur
+  delete[] msg;
 
   // If connected to WiFi, check for any messages from UDP
   if (communication.connecetedToWiFi)
@@ -202,18 +203,23 @@ void loop()
       byte packetBuffer[packetSize];
       communication.tcUdp.read(packetBuffer, packetSize);
 
-      // Remove the last byte from the packet buffer
-      // The last byte is a sacrifical one to solve a bug where the last byte was corrupted
-      packetBuffer[packetSize - 1] = '\0';
-      packetSize -= 1;
+      // Create a temporary array to store the packetBuffer without last byte
+      // When sending a string over UDP, the last character always got corrupted
+      // So a sacrifical char is added to the end of the string and then removed here
+      byte tempArray[packetSize - 1];
+      for (size_t i = 0; i < packetSize - 1; i++)
+      {
+        tempArray[i] = packetBuffer[i];
+      }
 
       // Check if heartbeat message was received
-      if (String((char*)packetBuffer) == "UDP Heartbeat")
+      if (memcmp(tempArray, "UDP Heartbeat", sizeof("UDP Heartbeat") - 1) == 0)
       {
         if (!communication.remoteIpKnown)
         {
           communication.remoteIpKnown = true;
           Serial.println("UDP Heartbeat received. Remote IP address is now known: " + communication.tcUdp.remoteIP().toString());
+          Serial.println();
         }
         communication.tmUdp.beginPacket(communication.tcUdp.remoteIP(), config.wifi_config.tmPort);
         communication.tmUdp.print("UDP Heartbeat," + String(WiFi.RSSI()));
@@ -221,38 +227,68 @@ void loop()
         return;
       }
 
-      // A CCSDS Telecommand packet was received
+      // Print the received message
+      Serial.print("TELECOMMAND PACKET | HEX: ");
+      for (size_t i = 0; i < packetSize; i++)
+      {
+        Serial.print(packetBuffer[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+
+      // Parse CCSDS telecommand
+      packetSize += 2; // +2 for the checksum added later
+      byte *packet = new byte[packetSize];
+      byte *packet_data = new byte[packetSize];
       uint16_t apid = 0;
       uint16_t sequence_count = 0;
-      uint32_t gps_epoch_time = 0;
-      uint16_t subseconds = 0;
-      byte *packet_data = new byte[packetSize - 12];
       uint16_t packet_data_length = 0;
-      parse_ccsds(packetBuffer, apid, sequence_count, gps_epoch_time, subseconds, packet_data, packet_data_length);
+      uint16_t packet_id = 0;
+      parse_ccsds_telecommand(packetBuffer, apid, sequence_count, packet_id, packet_data, packet_data_length);
+
+      // If the apid is 30, the telecommand is for the rotator angles
+      if (apid == 30)
+      {
+        Serial.println("Rotator angles received");
+        Converter data_values[2];
+        extract_ccsds_data_values(packet_data, data_values, "float,float");
+        Serial.println("Azimuth: " + String(data_values[0].f) + " | Elevation: " + String(data_values[1].f));
+        steppers.setRequiredPosition(data_values[0].f, data_values[1].f);
+        Serial.println();
+        return; // No need to continue
+      }
+
+      // YAMCS telecommands are generated without a checksum
+      // So the checksum must be added here
+      add_crc_16_cciit_to_ccsds_packet(packet, packetSize);
+
+      Serial.print("Adding cheksum! Packet with added checksum: ");
+      for (size_t i = 0; i < packetSize; i++)
+      {
+        Serial.print(packet[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
 
       // According to the apid do the appropriate action
       if (apid == 10)
       {
         Serial.println("PFC Command received. Sending to Payload flight computer");
-        communication._radio->transmit_bytes(packetBuffer, packetSize);
+        communication._radio->transmit_bytes(packet, packetSize);
       }
       else if (apid == 20)
       {
         Serial.println("BFC Command received. Sending to Balloon flight computer");
-        communication._radio->transmit_bytes(packetBuffer, packetSize);
-      }
-      else if (apid == 30)
-      {
-        Serial.println("Rotator angles received");
-        Converter data_values[2];
-        extract_ccsds_data_values(packet_data, data_values, "float,float");
-        steppers.setRequiredPosition(data_values[0].f, data_values[1].f);
+        communication._radio->transmit_bytes(packet, packetSize);
       }
       else
       {
         Serial.println("Unknown telecommand! Telecommand discarded!");
       }
+
+      Serial.println();
       // Free memory
+      delete[] packet;
       delete[] packet_data;
     }
   }

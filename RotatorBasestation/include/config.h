@@ -10,6 +10,7 @@
 
 // Our libraries
 #include <RadioLib_wrapper.h>
+#include <Ccsds_packets.h>
 
 // Used radio module
 #define radio_module SX1262

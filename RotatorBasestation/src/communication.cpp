@@ -94,9 +94,9 @@ void Communication::WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t i
     WIFI_REASON_HANDSHAKE_TIMEOUT        = 204,
   */
   connecetedToWiFi = false;
-  // Serial.print("WiFi lost connection. Reason: ");
-  // Serial.println(info.wifi_sta_disconnected.reason);
-  // Serial.println("Reconnecting");
+  Serial.print("WiFi lost connection. Reason: ");
+  Serial.println(info.wifi_sta_disconnected.reason);
+  Serial.println("Reconnecting");
 
   // Stop UDP and WiFI
   tmUdp.stop();
