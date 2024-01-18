@@ -1,7 +1,7 @@
 import time
 from struct import pack, unpack
 
-def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str):
+def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str, telecommand: bool = False):
   """
   Converts a message string to a CCSDS packet.
   
@@ -12,6 +12,16 @@ def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str):
   """
   # Convert each value string to corresponding data type and convert to bytearray
   packet_data = bytearray()
+  
+  # If telecommand, the first value in data str is the packet id and it is a 16-bit integer
+  if telecommand:
+    try:
+      packet_data += bytearray(pack("H", int(data_str.split(",")[0]) & 0xFFFF))
+      data_str = ",".join(data_str.split(",")[1:])
+    except Exception as e:
+      print(f"Error converting packet id to bytearray: {e}. Full message: {data_str}")
+      return None
+    
   for value in data_str.split(","):
     try:
       # Integer
@@ -33,10 +43,9 @@ def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str):
   # Create full packet
   try:
     packet = create_primary_header(apid, sequence_count, len(packet_data))
-    packet += create_secondary_header()
+    if not telecommand:
+      packet += create_secondary_header()
     packet += packet_data
-    # Add sacrifical byte to fix an issue with corrupted last byte
-    packet += bytearray("~".encode())
     
   except Exception as e:
     print(f"Error creating primary header: {e}. Full message: {data_str}")
@@ -52,9 +61,8 @@ def parse_ccsds_packet(packet: bytearray):
     
     # Get the binary array
     ccsds_binary = bin(int(packet_hex, 16))[2:].zfill(len(packet_hex) * 4)
-    # Secondary header field
     packet_version_number = ccsds_binary[:3]      
-    
+  
     packet_identification_field = ccsds_binary[3:16]
     packet_type = packet_identification_field[0]
     secondary_header_flag = packet_identification_field[1:2]
@@ -64,15 +72,16 @@ def parse_ccsds_packet(packet: bytearray):
     sequence_flags = packet_sequence_control[:2]
     packet_sequence_count = packet_sequence_control[2:]
     
+    packet_data_length = ccsds_binary[32:48]
+    
     # Telemetry packets have a secondary header
     if int(packet_type, 2) == 0:
       # Secondary header field
-      secondary_header = ccsds_binary[32:80]
+      secondary_header = ccsds_binary[48:96]
       epoch_seconds = secondary_header[:32]
       epoch_subseconds = secondary_header[32:]
 
       # User data field
-      packet_data_length = ccsds_binary[80:96]
       packet_data = ccsds_binary[96:]
       
     # Telecommand packets do not have a secondary header
@@ -81,7 +90,6 @@ def parse_ccsds_packet(packet: bytearray):
       epoch_subseconds = b"0"
       
       # User data field
-      packet_data_length = ccsds_binary[32:48]
       packet_data = ccsds_binary[48:]
     
     # Convert to usable data types

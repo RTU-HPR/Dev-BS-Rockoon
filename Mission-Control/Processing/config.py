@@ -38,8 +38,6 @@ TELECOMMAND_APID = {
   "pfc": 10,
   "bfc": 20,
   "rotator": 30,
-  # Non yamcs
-  "rotator_angles": 40
 }
 
 # Command packet ids

@@ -1,5 +1,6 @@
 import socket
 import queue
+from struct import pack
 import time
 from config import CYCLE_TIME
 
@@ -32,14 +33,10 @@ class ConnectionManager:
     time.sleep(1)
 
   def send_to_transceiver(self) -> None:
-    """
-    Send a packet to the base station.
-    """
     packet = self.sendable_to_transceiver_messages.get()
-    print(packet)
     try:
       # Check if we should wait until the next cycle time to send the packet
-      if packet[0]:
+      if packet[0] == True:
         # Wait until the next cycle time to send the packet
         # Cycle starts when epoch time is divisible by CYCLE_TIME (12 seconds)
         if not int(time.mktime(time.localtime())) % CYCLE_TIME == 0:
@@ -48,6 +45,7 @@ class ConnectionManager:
           time.sleep(0.1)
         # Send the packet 1 seconds after the cycle time start
         time.sleep(1)
+        
       self.transceiver_tc_socket.sendto(packet[2], self.transceiver_tc_address)
       self.sendable_to_transceiver_messages.task_done()
       print("Packet sent to transceiver")
@@ -56,9 +54,6 @@ class ConnectionManager:
       print(f"An error occurred while sending to transceiver: {e}")
   
   def receive_from_transceiver(self) -> None:
-    """
-    Continously receive messages from the base station.
-    """
     try:
       # Receive a message from the transceiver
       message, addr = self.transceiver_tm_socket.recvfrom(4096)
@@ -72,7 +67,7 @@ class ConnectionManager:
           raise Exception()
       # If the message is not a heartbeat, put it in the queue
       except:
-        self.received_messages.put(message)
+        self.received_messages.put((False, "yamcs", message))
         
     except socket.timeout:
       print("Connection to transceiver timed out")
@@ -80,9 +75,6 @@ class ConnectionManager:
       print(f"An error occurred while receiving from transceiver: {e}")    
       
   def send_to_yamcs(self) -> None:
-    """
-    Send a packet to YAMCS.
-    """
     packet = self.sendable_to_yamcs_messages.get()
     try:
       self.yamcs_tm_socket.sendto(packet[2], self.yamcs_tm_address)
@@ -93,13 +85,9 @@ class ConnectionManager:
       print(f"An error occurred while sending to YAMCS: {e}")
       
   def receive_from_yamcs(self) -> None:
-    """
-    Continously receive commands from YAMCS.
-    """
     try:
-      packet, addr = self.yamcs_tc_socket.recvfrom(4096)
-      packet = bytearray(packet)
-      self.received_messages.put(packet)
+      packet, addr = self.yamcs_tc_socket.recvfrom(1024)
+      self.received_messages.put((False, "transceiver", packet))
       print("Message received from YAMCS")
       
     except Exception as e:

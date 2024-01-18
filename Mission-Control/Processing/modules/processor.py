@@ -31,6 +31,8 @@ class PacketProcessor:
     self.pfc_telemetry = {value: 0.0 for type, value in telemetry_message_structure["pfc"]}
     self.bfc_telemetry = {value: 0.0 for type, value in telemetry_message_structure["bfc"]}
     self.rotator_telemetry = {value: 0.0 for type, value in telemetry_message_structure["rotator"]}
+    self.rotator_telemetry["latitude"] = 56.952513
+    self.rotator_telemetry["longitude"] = 24.081168
     # Timing
     self.last_pfc_telemetry_epoch_seconds = 0
     self.last_bfc_telemetry_epoch_seconds = 0
@@ -53,7 +55,7 @@ class PacketProcessor:
     
     try:
       # Parse the packet      
-      parsed = parse_ccsds_packet(packet)
+      parsed = parse_ccsds_packet(packet[2])
       if parsed is None:
         raise Exception("Invalid ccsds packet")
       
@@ -67,7 +69,7 @@ class PacketProcessor:
         
         # If the packet is meant for the rotator, process it, else put it in the processed packets queue
         if not self.__process_rotator_command(packet_id, packet_data):
-          self.processed_packets.put((True, "transceiver", packet))
+          self.processed_packets.put((True, "transceiver", packet[2]))
           # Complete the task
           self.connection_manager.received_messages.task_done()
           return
@@ -80,7 +82,7 @@ class PacketProcessor:
       elif apid in [key for key, value in self.apid_to_type.items() if value == "rotator_position"]:
         self.__update_rotator_telemetry(packet_data)
         
-      self.processed_packets.put((False, "yamcs", packet))
+      self.processed_packets.put((False, "yamcs", packet[2]))
             
       # Complete the task
       self.connection_manager.received_messages.task_done()
@@ -112,24 +114,24 @@ class PacketProcessor:
       
       # Set rotator to manual rotator position mode
       elif packet_id == [key for key, value in self.packetid_to_type.items() if value == "rotator_manual_rotator_position_request"][0]:
-        latitude = str(binary_to_float(packet_data[:32]))
-        longitude = str(binary_to_float(packet_data[32:64]))
-        altitude = str(binary_to_float(packet_data[64:96]))
+        latitude = binary_to_float(packet_data[:32])
+        longitude = binary_to_float(packet_data[32:64])
+        altitude = binary_to_float(packet_data[64:96])
         self.rotator.set_manual_rotator_position(latitude, longitude, altitude)
         return True
       
       # Set rotator to manual angles mode
       elif packet_id == [key for key, value in self.packetid_to_type.items() if value == "rotator_manual_angles_request"][0]:
-        azimuth = str(binary_to_float(packet_data[:32]))
-        elevation = str(binary_to_float(packet_data[32:64]))
+        azimuth = binary_to_float(packet_data[:32])
+        elevation = binary_to_float(packet_data[32:64])
         self.rotator.set_manual_angles(azimuth, elevation)
         return True
         
       # Set rotator to manual target coordinates mode
       elif packet_id == [key for key, value in self.packetid_to_type.items() if value == "rotator_manual_target_coordinates_request"][0]: 
-        latitude = str(binary_to_float(packet_data[:32]))
-        longitude = str(binary_to_float(packet_data[32:64]))
-        altitude = str(binary_to_float(packet_data[64:96]))
+        latitude = binary_to_float(packet_data[:32])
+        longitude = binary_to_float(packet_data[32:64])
+        altitude = binary_to_float(packet_data[64:96])
         self.rotator.set_manual_target_position(latitude, longitude, altitude)
         return True
 
@@ -157,35 +159,31 @@ class PacketProcessor:
         else:
           raise Exception(f"Invalid data type: {type} and {value}")
         
-        # PFC essential telemetry
-        old_pfc_telemetry_epoch_seconds = self.last_pfc_telemetry_epoch_seconds
-        old_pfc_telemetry_epoch_subseconds = self.last_pfc_telemetry_epoch_subseconds
-        self.last_pfc_telemetry_epoch = epoch_seconds
-        self.last_pfc_telemetry_epoch_subseconds = epoch_subseconds
-        
-        # Calculate time delta from seconds and subseconds
-        time_delta = (self.last_pfc_telemetry_epoch_seconds - old_pfc_telemetry_epoch_seconds) + (self.last_pfc_telemetry_epoch_subseconds - old_pfc_telemetry_epoch_subseconds) / 65536
+      # PFC essential telemetry
+      old_pfc_telemetry_epoch_seconds = self.last_pfc_telemetry_epoch_seconds
+      old_pfc_telemetry_epoch_subseconds = self.last_pfc_telemetry_epoch_subseconds
+      self.last_pfc_telemetry_epoch_seconds = epoch_seconds
+      self.last_pfc_telemetry_epoch_subseconds = epoch_subseconds
 
-        # Calculate extra telemetry if position is valid
-        if self.pfc_telemetry["gps_latitude"] != None and self.pfc_telemetry["gps_latitude"] != 0:
-          self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
-          message = ""
-          for key, value in self.pfc_calculations.items():
-            message += f"{value},"
-          # Remove last comma
-          message[:-1]
+      # Calculate time delta from seconds and subseconds
+      time_delta = (self.last_pfc_telemetry_epoch_seconds - old_pfc_telemetry_epoch_seconds) + (self.last_pfc_telemetry_epoch_subseconds - old_pfc_telemetry_epoch_subseconds) / 65536
+
+      # Calculate extra telemetry if position is valid
+      if self.pfc_telemetry["gps_latitude"] != None and self.pfc_telemetry["gps_latitude"] != 0:
+        self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
+      message = ",".join([str(x) for x in self.pfc_calculations.values()]) 
           
-          apid = [key for key, value in self.apid_to_type.items() if value == "pfc_calculations"][0]
+      apid = [key for key, value in self.apid_to_type.items() if value == "pfc_calculations"][0]
           
-          ccsds = convert_message_to_ccsds(apid, self.pfc_calculations_index, message)
+      ccsds = convert_message_to_ccsds(apid, self.pfc_calculations_index, message)
           
-          if ccsds is None:
-            return
+      if ccsds is None:
+        return
           
-          self.processed_packets.put((False, "yamcs", ccsds))
-          self.pfc_calculations_index += 1
-          
-        self.pfc_telemetry = new_telemetry
+      self.processed_packets.put((False, "yamcs", ccsds))
+      self.pfc_calculations_index += 1
+        
+      self.pfc_telemetry = new_telemetry
         
     except Exception as e:
       print(f"Error updating PFC telemetry: {e}")

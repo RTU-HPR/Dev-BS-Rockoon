@@ -15,23 +15,21 @@ class Router:
   
   def send_data_to_map(self):
     # If the balloon has a valid position and the coordinates are not already in the list, add them
-    if self.processor.bfc_telemetry["gps_latitude"] != 0 and self.processor.bfc_telemetry["gps_longitude"] != 0:
-      if isinstance(self.processor.bfc_telemetry["gps_latitude"], float) and isinstance(self.processor.bfc_telemetry["gps_longitude"], float):
-        if [self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]] not in self.map.ballon_coordinates:
-          self.map.ballon_coordinates.append([self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]])
-          self.map.map_update_required = True    
+    if [self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]] not in self.map.ballon_coordinates:
+      if self.processor.bfc_telemetry["gps_latitude"] != 0 and self.processor.bfc_telemetry["gps_longitude"] != 0:
+        self.map.ballon_coordinates.append([self.processor.bfc_telemetry["gps_latitude"], self.processor.bfc_telemetry["gps_longitude"]])
+        self.map.map_update_required = True    
 
     # If the payload has a valid position and the coordinates are not already in the list, add them
-    if self.processor.pfc_telemetry["gps_latitude"] != 0 and self.processor.pfc_telemetry["gps_longitude"] != 0:
-      if isinstance(self.processor.pfc_telemetry["gps_latitude"], float) and isinstance(self.processor.pfc_telemetry["gps_longitude"], float):
-        if [self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]] not in self.map.payload_coordinates:
-          self.map.payload_coordinates.append([self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]])
-          self.map.map_update_required = True    
+    if [self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]] not in self.map.payload_coordinates:
+      if self.processor.pfc_telemetry["gps_latitude"] != 0 and self.processor.pfc_telemetry["gps_longitude"] != 0:
+        self.map.payload_coordinates.append([self.processor.pfc_telemetry["gps_latitude"], self.processor.pfc_telemetry["gps_longitude"]])
+        self.map.map_update_required = True    
         
     # If the rotator has a valid position and the coordinates are not the same as the last ones in the list, change them
-    if [self.processor.rotator_telemetry["latitude"], self.processor.rotator_telemetry["longitude"]] not in self.map.rotator_coordinates:
-      if isinstance(self.processor.rotator_telemetry["latitude"], float) and isinstance(self.processor.rotator_telemetry["longitude"], float):
-        self.map.rotator_coordinates = [[self.processor.rotator_telemetry["latitude"], self.processor.rotator_telemetry["longitude"]]]
+    if [self.rotator.rotator_position["latitude"], self.rotator.rotator_position["longitude"]] not in self.map.rotator_coordinates:
+      if self.rotator.rotator_position["latitude"] != 0 and self.rotator.rotator_position["longitude"] != 0:
+        self.map.rotator_coordinates = [[self.rotator.rotator_position["latitude"], self.rotator.rotator_position["longitude"]]]
         self.map.map_update_required = True  
         
     sleep(0.1)  
@@ -49,11 +47,13 @@ class Router:
     
   def send_rotator_command_to_transceiver(self):
     if self.rotator.rotator_last_command != self.rotator.rotator_command:
-      apid = TELECOMMAND_APID["rotator_angles"]
+      apid = TELECOMMAND_APID["rotator"]
+      
       # As this is a command, we need to add packet id
-      data_str = str([key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_angles_request"][0])
-      data_str += "," + self.rotator.rotator_command
-      ccsds = convert_message_to_ccsds(apid, self.rotator.rotator_command_index, data_str) 
+      data_str = str([key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_angles_request"][0])      
+      data_str += "," + self.rotator.rotator_command      
+      
+      ccsds = convert_message_to_ccsds(apid, self.rotator.rotator_command_index, data_str, True) 
       if ccsds is None:
         return
       
@@ -62,6 +62,7 @@ class Router:
       self.rotator.rotator_last_command = self.rotator.rotator_command
       
       print(f"Rotator command sent: Azimuth: {float(self.rotator.rotator_command.split(',')[0])} | Elevation: {float(self.rotator.rotator_command.split(',')[1])}")
+      
     sleep(0.1)
     
   def update_rotator_data(self):

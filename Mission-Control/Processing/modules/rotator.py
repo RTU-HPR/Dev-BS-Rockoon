@@ -138,8 +138,9 @@ class Rotator:
     if self.rotator_control_mode == "auto":
       self.set_control_mode("manual")
       print(f"Rototor is now in manual control mode")
-    print(f"Setting rotator angles to {azimuth}, {elevation}")
+      
     self.rotator_angles = {"azimuth": azimuth, "elevation": elevation}
     self.new_angles_required = False
+    self.rotator_command = f"{self.rotator_angles['azimuth']},{self.rotator_angles['elevation']}"
     # Set the last command to empty so that the custom angles are sent right away
     self.rotator_last_command = ""
