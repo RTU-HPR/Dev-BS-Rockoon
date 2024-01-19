@@ -195,7 +195,7 @@ class PacketProcessor:
       # BFC essential telemetry
       old_bfc_telemetry_epoch_seconds = self.last_bfc_telemetry_epoch_seconds
       old_bfc_telemetry_epoch_subseconds = self.last_bfc_telemetry_epoch_subseconds
-      self.last_bfc_telemetry_epoch = epoch_seconds
+      self.last_bfc_telemetry_epoch_seconds = epoch_seconds
       self.last_bfc_telemetry_epoch_subseconds = epoch_subseconds
       
       # Calculate time delta from seconds and subseconds

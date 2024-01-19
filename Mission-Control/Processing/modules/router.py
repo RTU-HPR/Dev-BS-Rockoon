@@ -6,13 +6,14 @@ from modules.processor import PacketProcessor
 from modules.connection_manager import ConnectionManager
 from modules.rotator import Rotator
 from modules.map import Map
-
+from modules.sondehub import SondeHubUploader
 class Router:
-  def __init__(self, processor: PacketProcessor, connection: ConnectionManager, rotator: Rotator, map: Map) -> None:
+  def __init__(self, processor: PacketProcessor, connection: ConnectionManager, rotator: Rotator, map: Map, sondehub: SondeHubUploader) -> None:
     self.processor = processor
     self.connection = connection
     self.rotator = rotator
     self.map = map
+    self.sondehub = sondehub
   
   def send_data_to_map(self):
     # If the balloon has a valid position and the coordinates are not already in the list, add them
@@ -89,7 +90,17 @@ class Router:
     pass
   
   def send_data_to_sondehub(self):
-    pass
+    self.sondehub.upload_balloon_data(self.processor.last_bfc_telemetry_epoch_seconds,
+                                      self.processor.bfc_telemetry["gps_latitude"],
+                                      self.processor.bfc_telemetry["gps_longitude"],
+                                      self.processor.bfc_telemetry["gps_altitude"])
+    
+    self.sondehub.upload_payload_data(self.processor.last_pfc_telemetry_epoch_seconds,
+                                      self.processor.pfc_telemetry["gps_latitude"],
+                                      self.processor.pfc_telemetry["gps_longitude"],
+                                      self.processor.pfc_telemetry["gps_altitude"])
+    sleep(1)
+                              
   
   def send_data_to_recovery_server(self):
     pass
