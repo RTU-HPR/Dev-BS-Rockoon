@@ -1,6 +1,5 @@
 import socket
 import queue
-from struct import pack
 import time
 from config import CYCLE_TIME
 
@@ -38,7 +37,7 @@ class ConnectionManager:
       # Check if we should wait until the next cycle time to send the packet
       if packet[0] == True:
         # Wait until the next cycle time to send the packet
-        # Cycle starts when epoch time is divisible by CYCLE_TIME (12 seconds)
+        # Cycle starts when epoch time is divisible by CYCLE_TIME
         if not int(time.mktime(time.localtime())) % CYCLE_TIME == 0:
           print(f"Waiting for cycle time to start in {CYCLE_TIME - int(time.mktime(time.localtime())) % CYCLE_TIME} seconds to send a command to transceiver")
         while not (int(time.mktime(time.localtime())) % CYCLE_TIME == 0):
@@ -61,7 +60,7 @@ class ConnectionManager:
       # Try to decode the message to see if it is a heartbeat
       try:
         message = message.decode()
-        if "Heartbeat":
+        if "Heartbeat" in message:
           print(f"WiFi RSSI: {message.split(",")[1]} dBm | Cycle start in {CYCLE_TIME - int(time.mktime(time.localtime())) % CYCLE_TIME} seconds")
         else:
           raise Exception()

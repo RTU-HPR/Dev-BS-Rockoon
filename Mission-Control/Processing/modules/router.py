@@ -1,10 +1,11 @@
+from time import sleep
+
+from config import TELECOMMAND_APID, PACKETID_TO_TYPE
+from modules.ccsds import convert_message_to_ccsds
 from modules.processor import PacketProcessor
 from modules.connection_manager import ConnectionManager
 from modules.rotator import Rotator
 from modules.map import Map
-from modules.ccsds import convert_message_to_ccsds
-from time import sleep
-from config import TELECOMMAND_APID, PACKETID_TO_TYPE
 
 class Router:
   def __init__(self, processor: PacketProcessor, connection: ConnectionManager, rotator: Rotator, map: Map) -> None:

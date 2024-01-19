@@ -1,5 +1,4 @@
 from threading import Thread, Event
-from tracemalloc import start
 
 from modules.connection_manager import ConnectionManager
 from modules.processor import PacketProcessor

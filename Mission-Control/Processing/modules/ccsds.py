@@ -3,17 +3,13 @@ from struct import pack, unpack
 
 def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str, telecommand: bool = False):
   """
-  Converts a message string to a CCSDS packet.
-  
-  Returns the ccsds packet
-      
   Refrences: https://public.ccsds.org/Pubs/133x0b2c1.pdf 
   Most of the useful information about packet structure starts from page 31
   """
   # Convert each value string to corresponding data type and convert to bytearray
   packet_data = bytearray()
   
-  # If telecommand, the first value in data str is the packet id and it is a 16-bit integer
+  # If creating a telecommand, the first value in data str is the packet id and it is a 16-bit integer
   if telecommand:
     try:
       packet_data += bytearray(pack("H", int(data_str.split(",")[0]) & 0xFFFF))
@@ -42,7 +38,8 @@ def convert_message_to_ccsds(apid: int, sequence_count: int, data_str: str, tele
     
   # Create full packet
   try:
-    packet = create_primary_header(apid, sequence_count, len(packet_data))
+    packet = create_primary_header(apid, sequence_count, len(packet_data), not telecommand)
+    # Only telemetry packets have a secondary header
     if not telecommand:
       packet += create_secondary_header()
     packet += packet_data
@@ -104,7 +101,7 @@ def parse_ccsds_packet(packet: bytearray):
     return None
   
 
-def create_primary_header(apid: int, sequence_count: int, data_length: int) -> bytearray:
+def create_primary_header(apid: int, sequence_count: int, data_length: int, secondary_header: bool = True) -> bytearray:
   """
   Creates the primary header of a CCSDS packet.
   """
@@ -116,7 +113,10 @@ def create_primary_header(apid: int, sequence_count: int, data_length: int) -> b
   # Secondary header flag - 1 bit
   # APID (Application Process Identifier) - 11 bits
   PACKET_TYPE = b"0"
-  SECONDARY_HEADER_FLAG = b"1"
+  if secondary_header:
+    SECONDARY_HEADER_FLAG = b"1"
+  else:
+    SECONDARY_HEADER_FLAG = b"0"
   apid_binary = bin(apid)[2:].zfill(11).encode()
   packet_identification_field = PACKET_TYPE + SECONDARY_HEADER_FLAG + apid_binary
   
