@@ -15,6 +15,28 @@ bool Communication::beginRadio(RadioLib_Wrapper<radio_module>::Radio_Config &rad
   return true;
 }
 
+bool Communication::sendRadio(byte *bytes, size_t size)
+{
+  // Send the message
+  if (!_radio->transmit_bytes(bytes, size))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+bool Communication::receiveRadio(byte *&msg, uint16_t &msg_length, float &rssi, float &snr, double &frequency)
+{
+  // Receive the message
+  if (!_radio->receive_bytes(msg, msg_length, rssi, snr, frequency))
+  {
+    return false;
+  }
+
+  return true;
+}
+
 void Communication::beginWiFi(Config::WiFi_Config &wifi_config)
 {
   // Copy the config
@@ -31,7 +53,7 @@ void Communication::beginWiFi(Config::WiFi_Config &wifi_config)
                { WiFiStationDisconnected(event, info); },
                WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
-  WiFi.setTxPower(WIFI_POWER_19_5dBm); // Set WiFi RF power output to highest level
+  // WiFi.setTxPower(WIFI_POWER_19_5dBm); // Set WiFi RF power output to highest level
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifi_config.ssid, wifi_config.pass);
 
@@ -104,30 +126,6 @@ void Communication::WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t i
   WiFi.disconnect();
 
   // Reconnect to WiFi
-  WiFi.begin(wifi_config.ssid, wifi_config.pass);
-}
-
-
-void Communication::parseString(String &input, String *values, size_t maxSize)
-{
-  int startIndex = 0;
-  int endIndex = input.indexOf(',');
-  size_t index = 0;
-
-  while (endIndex != -1 && index < maxSize)
-  {
-    // Extract each substring
-    values[index] = input.substring(startIndex, endIndex);
-
-    // Move to the next substring
-    startIndex = endIndex + 1;
-    endIndex = input.indexOf(',', startIndex);
-    index++;
-  }
-
-  // Process the last substring
-  if (index < maxSize)
-  {
-    values[index] = input.substring(startIndex);
-  }
+  // WiFi.begin(wifi_config.ssid, wifi_config.pass);
+  WiFi.reconnect();
 }

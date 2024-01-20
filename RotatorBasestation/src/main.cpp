@@ -4,16 +4,22 @@
 #include <steppers.h>
 #include <gps.h>
 #include <communication.h>
+#include <lcd.h>
 
 Config config;
 Steppers steppers;
 Gps gps;
 Communication communication;
+LCD lcd;
 
 void setup()
 {
   // Start the pc Serial
   Serial.begin(config.PC_BAUDRATE);
+
+  // Start the LCD
+  lcd.begin(config.LCD_ADDRESS, config.LCD_COLUMNS, config.LCD_ROWS, config.LCD_UPDATE_INTERVAL);
+  Serial.println("LCD setup complete");
 
   // Start the GPS
   Serial1.begin(config.SERIAL1_BAUDRATE);
@@ -51,6 +57,9 @@ void loop()
 
   // Update the GPS
   gps.readGps();
+
+  // Update the LCD
+  lcd.updateLcdScreen(communication.last_radio_packet_millis, communication.connecetedToWiFi);
 
   // If gps data is valid and required time has passed, send the gps data over UDP
   if (gps.gps.location.isValid() && gps.gps.time.isValid() && millis() - communication.lastRotatorPositionSendMillis > config.GPS_SEND_INTERVAL)
@@ -101,7 +110,7 @@ void loop()
   double frequency = 0;
   bool checksum_good = false;
 
-  if (communication._radio->receive_bytes(msg, msg_length, rssi, snr, frequency))
+  if (communication.receiveRadio(msg, msg_length, rssi, snr, frequency))
   {
     // Check if checksum matches
     if (check_crc_16_cciit_of_ccsds_packet(msg, msg_length))
@@ -111,6 +120,9 @@ void loop()
 
     if (checksum_good)
     {
+      // Update the last radio packet time
+      communication.last_radio_packet_millis = millis();
+
       // Print the received message
       Serial.print("TELEMETRY PACKET | HEX: ");
       // Print as hex
@@ -155,6 +167,7 @@ void loop()
       {
         Converter data_values[6];
         extract_ccsds_data_values(packet_data, data_values, "float,float,float,float,uint32,uint32");
+
         // Update the flight computer position. TODO: Display on the LCD
         flight_computer_latitude = data_values[0].f;
         flight_computer_longitude = data_values[1].f;
@@ -163,6 +176,9 @@ void loop()
         Serial.println("Apid: " + String(apid) + " | Sequence Count: " + String(sequence_count) + " | GPS Epoch: " + String(gps_epoch_time) + "." + String(subseconds) + " | RSSI: " + String(rssi) + " | SNR: " + String(snr) + " | Frequency: " + String(frequency, 8));
         Serial.println("Latitude: " + String(data_values[0].f, 6) + " | Longitude: " + String(data_values[1].f, 6) + " | Altitude: " + String(data_values[2].f));
         Serial.println("Baro Altitude: " + String(data_values[3].f) + " | Satellites: " + String(data_values[4].i32) + " | Info/Error in Queue: " + (data_values[5].i32 == 0 ? "False" : "True"));
+
+        // Update LCD data
+        lcd.updateLcdData(flight_computer_latitude, flight_computer_longitude, flight_computer_altitude, rssi, snr);
       }
       else
       {
@@ -274,12 +290,12 @@ void loop()
       if (apid == 10)
       {
         Serial.println("PFC Command received. Sending to Payload flight computer");
-        communication._radio->transmit_bytes(packet, packetSize);
+        communication.sendRadio(packet, packetSize);
       }
       else if (apid == 20)
       {
         Serial.println("BFC Command received. Sending to Balloon flight computer");
-        communication._radio->transmit_bytes(packet, packetSize);
+        communication.sendRadio(packet, packetSize);
       }
       else
       {
