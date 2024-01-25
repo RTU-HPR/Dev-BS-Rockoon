@@ -9,6 +9,8 @@ public:
    */
   TinyGPSPlus gps;
   
+  int rotator_gps_sequence_count = 0;
+
   /**
    * @brief GPS config object. This config is copied from the config object in beginGps()
    */

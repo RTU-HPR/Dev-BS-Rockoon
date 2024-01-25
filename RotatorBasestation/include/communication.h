@@ -18,8 +18,10 @@ public:
   bool remoteIpKnown = false;
   unsigned long lastUdpReceivedMillis = 0;
 
-  int rotatorPositionMessageIndex = 1;
+  int rotatorPositionMessageIndex = 0;
   unsigned long lastRotatorPositionSendMillis = 0;
+
+  unsigned long last_radio_packet_millis = 0;
 
   /**
    * @brief Initialise the Communication Radio
@@ -29,14 +31,24 @@ public:
 
   /**
    * @brief Sends the provided message using LoRa
-   * @param msg Message to send
+   * @param bytes The message to send
+   * @param size The size of the message
    * @return Whether the message was sent successfully
    */
-  bool sendRadio(String msg);
+  bool sendRadio(byte *bytes, size_t size);
+
+  /**
+   * @brief Receives a message using LoRa
+   * @param msg The message to receive
+   * @param msg_length The size of the message
+   * @param rssi The RSSI of the received message
+   * @param snr The SNR of the received message
+   * @param frequency The frequency of the received message
+  */
+  bool receiveRadio(byte *&msg, uint16_t &msg_length, float &rssi, float &snr, double &frequency);
 
   void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
   void beginWiFi(Config::WiFi_Config &wifi_config);
-  void parseString(String &input, String *values, size_t maxSize);
 };

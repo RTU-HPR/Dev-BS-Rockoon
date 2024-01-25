@@ -1,6 +1,6 @@
 from time import sleep
-from multiprocessing import Process
 
+from config import *
 from modules.processor import PacketProcessor
 from modules.connection_manager import ConnectionManager
 from modules.sondehub import SondeHubUploader
@@ -8,7 +8,6 @@ from modules.router import Router
 from modules.map import Map
 from modules.thread_manager import ThreadManager
 from modules.rotator import Rotator
-import config
 
 if __name__ == '__main__':
   print("RTU High Power Rocketry Team - Ground Station Data Processing Software")
@@ -16,27 +15,19 @@ if __name__ == '__main__':
   
   # Create objects
   try:
-    connection_manager = ConnectionManager(config.YAMCS_TM_ADDRESS,
-                            config.YAMCS_TC_ADDRESS,
-                            config.TRANSCEIVER_TM_ADDRESS,
-                            config.TRANSCEIVER_TC_ADDRESS)
+    connection_manager = ConnectionManager(YAMCS_TM_ADDRESS, YAMCS_TC_ADDRESS, TRANSCEIVER_TM_ADDRESS, TRANSCEIVER_TC_ADDRESS)
   except OSError as e:
     print(f"The following error occurred while creating the connection manager: {e}")
     print("Most likely the IP address is not valid. Please check the config.py file and try again.")
     exit(1)
   
   rotator = Rotator()
-  map = Map(map_server_port=config.MAP_SERVER_PORT)
+  map = Map(map_server_port=MAP_SERVER_PORT)
   sondehub_uploader = SondeHubUploader()
   
-  processor = PacketProcessor(connection_manager, 
-                              rotator, 
-                              config.APID_TO_TYPE,
-                              config.TELECOMMAND_APID,
-                              config.PACKETID_TO_TYPE,
-                              config.TELEMETRY_MESSAGE_STRUCTURE)
+  processor = PacketProcessor(connection_manager, rotator)
   
-  router = Router(processor, connection_manager, rotator, map)
+  router = Router(processor, connection_manager, rotator, map, sondehub_uploader)
   thread_manager = ThreadManager(connection_manager, processor, router, sondehub_uploader, map, rotator)
   
   print("Setup successful!")
@@ -57,6 +48,7 @@ if __name__ == '__main__':
   thread_manager.start_map_update_thread()
   thread_manager.start_packet_processing_thread()
   thread_manager.start_control_rotator_thread()
+  thread_manager.start_sondehub_uploader_thread()
   
   print("All threads started!")
   print()

@@ -1,5 +1,4 @@
 from threading import Thread, Event
-from tracemalloc import start
 
 from modules.connection_manager import ConnectionManager
 from modules.processor import PacketProcessor
@@ -13,7 +12,7 @@ class ThreadManager:
     self.connection_manager = connection_manager
     self.packet_processor = packet_processor
     self.router = router
-    self.sondehub_uploader = sondehub_uploader
+    self.sondehub = sondehub_uploader
     self.map = map
     self.rotator = rotator
     
@@ -98,6 +97,12 @@ class ThreadManager:
     thread.daemon = True
     thread.start()
     self.active_threads.append(thread)
+    
+  def start_sondehub_uploader_thread(self):
+    thread = Thread(target=self.sondehub_uploader_thread, name="SondeHub Uploader")
+    thread.daemon = True
+    thread.start()
+    self.active_threads.append(thread)
   
   # THREAD FUNCTIONS
   def receive_from_transceiver_thread(self):
@@ -151,4 +156,9 @@ class ThreadManager:
   def send_heartbeat_to_transceiver_thread(self):
     while not self.stop_event.is_set():
       self.connection_manager.send_heartbeat_to_transceiver()
+      
+  def sondehub_uploader_thread(self):
+    while not self.stop_event.is_set():
+      self.router.send_data_to_sondehub()
+    self.sondehub.close_uploader()
   

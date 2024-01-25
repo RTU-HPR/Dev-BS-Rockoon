@@ -1,422 +1,256 @@
-from struct import pack, unpack
-import time
 import queue
 
 from modules.connection_manager import ConnectionManager 
 from modules.rotator import Rotator
 from modules.calculations import *
-from config import CALCULATION_MESSAGE_STRUCTURE
+from modules.ccsds import *
+from config import *
 
 class PacketProcessor:
   def __init__(self, 
          connection_manager: ConnectionManager,
-         rotator: Rotator,
-         apid_to_type: dict,
-         telecommand_apid: dict,
-         packetid_to_type: dict,
-         telemetry_message_structure) -> None:
+         rotator: Rotator) -> None:
     # Objects
     self.connection_manager = connection_manager
     self.rotator = rotator
     
-    # Message information
-    self.apid_to_type = apid_to_type
-    self.telecommand_apid = telecommand_apid
-    self.packetid_to_type = packetid_to_type
-    
-    # Message structures
-    self.telemetry_message_structure = telemetry_message_structure
-    
     # Telemetry
-    self.pfc_telemetry = dict.fromkeys(telemetry_message_structure["pfc"])
-    self.bfc_telemetry = dict.fromkeys(telemetry_message_structure["bfc"])
-    self.rotator_telemetry = dict.fromkeys(telemetry_message_structure["rotator"])
+    self.pfc_telemetry = {value: 0.0 for type, value in TELEMETRY_MESSAGE_STRUCTURE["pfc"]}
+    self.bfc_telemetry = {value: 0.0 for type, value in TELEMETRY_MESSAGE_STRUCTURE["bfc"]}
+    self.rotator_telemetry = {value: 0.0 for type, value in TELEMETRY_MESSAGE_STRUCTURE["rotator"]}
     
     # Timing
-    self.last_pfc_telemetry_epoch = 0
-    self.last_bfc_telemetry_epoch = 0
+    self.last_pfc_telemetry_epoch_seconds = 0
+    self.last_bfc_telemetry_epoch_seconds = 0
+    self.last_pfc_telemetry_epoch_subseconds = 0
+    self.last_bfc_telemetry_epoch_subseconds = 0
     
     # Calculations
-    self.pfc_calculations = dict.fromkeys(telemetry_message_structure["pfc"], 0)
-    self.bfc_calculations = dict.fromkeys(telemetry_message_structure["bfc"], 0)
-    self.rotator_calculations = dict.fromkeys(telemetry_message_structure["rotator"], 0)
-    self.pfc_calculations_index = 1
-    self.bfc_calculations_index = 1
+    self.pfc_calculations = dict.fromkeys(TELEMETRY_MESSAGE_STRUCTURE["pfc"], 0.0)
+    self.bfc_calculations = dict.fromkeys(TELEMETRY_MESSAGE_STRUCTURE["bfc"], 0.0)
+    self.rotator_calculations = dict.fromkeys(TELEMETRY_MESSAGE_STRUCTURE["rotator"], 0.0)
+    self.pfc_calculations_index = 0
+    self.bfc_calculations_index = 0
+    self.rotator_calculations_index = 0
     
     # Queues
     self.processed_packets = queue.Queue()
   
-  def process_packet(self):
+  def process_packet(self) -> None:
     # Get a packet from connection manager
     packet = self.connection_manager.received_messages.get()
     
     try:
-      # If the message is a string, it is from transceiver
-      if isinstance(packet, str):
-        converted = self.convert_message_to_ccsds(packet)
-        if converted is None:
-          raise Exception("Invalid message")
-        
-        # Split the message into parts
-        ccsds, apid, sequence_count = converted
-        
-        # If able update the telemetry values from the message
-        self.__update_values_from_message(packet)
-        
-        # Queue the packet for sending to YAMCS
-        self.processed_packets.put(ccsds)
-        
-        print("Transceiver data successfully processed")
-        
-      # If the message is a bytearray, it is from YAMCS
-      elif isinstance(packet, bytearray):
-        converted = self.convert_ccsds_to_message(packet)
-        if converted is None:
-          raise Exception("Invalid ccsds packet")
-
-        # Split the message into parts
-        command, data, packet_id = converted
-        
-        print(f"HELLOOOO: {command}")
-        
-        # Check if the command is meant to change something in this program
-        self.__process_rotator_command(packet_id, data)
-          
-        # Else queue the packet for sending to transceiver
-        self.processed_packets.put(command)
-        
-        print("YAMCS Command successfully processed")
-        
-      else:
-        raise Exception(f"Invalid packet type: {type(packet)}")
+      # Parse the packet      
+      parsed = parse_ccsds_packet(packet[2])
+      if parsed is None:
+        raise Exception("Invalid ccsds packet")
       
+      apid, epoch_seconds, epoch_subseconds, packet_data = parsed
+      
+      # If the packet is a telecommand
+      if apid in TELECOMMAND_APID.values():
+        # Get packet id, which is the first 16 bits of the packet data
+        packet_id = int(packet_data[:16], 2)
+        packet_data = packet_data[16:]
+        
+        # If the packet is meant for the rotator, process it, else put it in the processed packets queue
+        if not self.__process_rotator_command(packet_id, packet_data):
+          self.processed_packets.put((True, "transceiver", packet[2]))
+          # Complete the task
+          self.connection_manager.received_messages.task_done()
+          return
+
+      # Update telemetry from essential packets
+      elif apid in [key for key, value in APID_TO_TYPE.items() if value == "pfc_essential"]:
+        self.__update_pfc_telemetry(packet_data, epoch_seconds, epoch_subseconds)
+      elif apid in [key for key, value in APID_TO_TYPE.items() if value == "bfc_essential"]:
+        self.__update_bfc_telemetry(packet_data, epoch_seconds, epoch_subseconds)
+      elif apid in [key for key, value in APID_TO_TYPE.items() if value == "rotator_position"]:
+        self.__update_rotator_telemetry(packet_data)
+        
+      self.processed_packets.put((False, "yamcs", packet[2]))
+            
       # Complete the task
       self.connection_manager.received_messages.task_done()
                     
     except Exception as e:
       self.connection_manager.received_messages.task_done()
       print(f"An error occurred while processing packet: {e}")
-    
-  def __isfloat(self, value: str) -> bool:
-    """
-    Checks if a string is a float.
-    """
-    try:
-      float(value)
-      return True
-    except ValueError:
-      return False
   
-  def convert_message_to_ccsds(self, message: str):
-    """
-    Converts a message string to a CCSDS packet.
-    
-    Returns the ccsds packet, apid, sequence count, is telemetry message 
-        
-    Refrences: https://public.ccsds.org/Pubs/133x0b2c1.pdf 
-    Most of the useful information about packet structure starts from page 31
-    """
-    # Split the message into parts and get the apid and sequence count
-    try:
-      message_split = message.split(",")
-      apid = int(message_split[1])
-      sequence_count = int(message_split[2])
-    except Exception as e:
-      print(f"Error spliting message: {e}. Full message: {message}")
-      return None
-    
-    # Convert each value string to corresponding data type and convert to bytearray
-    packet_data = bytearray()
-    for value in message_split[3:]:
-      try:
-        # Integer
-        if value.isdigit():    
-          byte = bytearray(pack("i", int(value) & 0xFFFFFFFF))
-          byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
-          packet_data += byte
-        # Float
-        elif self.__isfloat(value):
-          byte = bytearray(pack("f", float(value)))
-          byte.reverse() # Reverse the byte order as msbf is required, but pack returns lsbf
-          packet_data += byte
-        # String
-        else:
-          # Add a newline character as it is string termination character
-          value += "\n"
-          byte = bytearray(value.encode("utf-8"))
-          packet_data += byte
-      except Exception as e:
-        print(f"Error converting value {value} to bytearray: {e}. Full message: {message}")
-        return None
-      
-    # Create full packet
-    try:
-      packet = self.create_primary_header(apid, sequence_count, len(packet_data))
-      packet += packet_data
-    except Exception as e:
-      print(f"Error creating primary header: {e}. Full message: {message}")
-      return None
-    
-    return (packet, apid, sequence_count)
-  
-  def __binary_to_float(self, binary):
-    return unpack('!f',pack('!I', int(binary, 2)))[0]
-  
-  def convert_packet_data_to_string(self,packet_id, packet_data):    
-    # Heater set mode
-    if packet_id == 1003:
-      # Read 8 bits to get the heater mode
-      heater_mode = str(int(packet_data[:8], 2))
-      return heater_mode
-    
-    # PFC and BFC Ejection
-    elif packet_id == 1004 or packet_id == 2004:
-      # Read 8 bits to get the ejection channel
-      heater_mode = str(int(packet_data[:8], 2))
-      return heater_mode
-    
-    # RWC set mode
-    elif packet_id == 2003:
-      # Read 8 bits to get the rwc mode
-      rwc_mode = str(int(packet_data[:8], 2))
-      # Read next 32 bits to get the rwc direction
-      rwc_direction_data = packet_data[8:40]
-      rwc_direction = self.__binary_to_float(rwc_direction_data)
-      return f"{rwc_mode},{rwc_direction}"
-    
-    # Manual rotator position and manual target coordinates
-    elif packet_id == 3004 or packet_id == 3006:
-      # Read 32 bits to get the latitude
-      latitude = str(self.__binary_to_float(packet_data[:32]))
-      # Read next 32 bits to get the longitude
-      longitude = str(self.__binary_to_float(packet_data[32:64]))
-      # Read next 32 bits to get the altitude
-      altitude = str(self.__binary_to_float(packet_data[64:96]))
-      return f"{latitude},{longitude},{altitude}"
-      
-    # Manual angles
-    elif packet_id == 3005:
-      # Read 32 bits to get the azimuth
-      azimuth = str(self.__binary_to_float(packet_data[:32]))
-      # Read next 32 bits to get the elevation
-      elevation = str(self.__binary_to_float(packet_data[32:64]))
-      return f"{azimuth},{elevation}"
-    
-    else:
-      return ""
-    
-  def convert_ccsds_to_message(self, packet: bytearray):
-    """
-    Converts a CCSDS packet to a message string.
-    If the packet is invalid, returns an empty string.
-    """
-    try:
-      # Convert packet from bytes to hexadecimal string
-      packet_hex = packet.hex()
-      
-      # Get the binary array
-      ccsds_binary = bin(int(packet_hex, 16))[2:].zfill(len(packet_hex) * 4)
-
-      # Secondary header field
-      packet_version_number = ccsds_binary[:3]      
-      
-      packet_identification_field = ccsds_binary[3:16]
-      packet_type = packet_identification_field[0]
-      secondary_header_flag = packet_identification_field[1:2]
-      apid = packet_identification_field[2:]
-
-      packet_sequence_control = ccsds_binary[16:32]
-      sequence_flags = packet_sequence_control[:2]
-      packet_sequence_count = packet_sequence_control[2:]
-      
-      # User data field
-      packet_data_length = ccsds_binary[32:48]
-      packet_id = ccsds_binary[48:64]
-      packet_data = ccsds_binary[64:]
-      
-      # Convert to usable data types
-      apid = int(apid, 2)
-      packet_id = int(packet_id, 2)
-      packet_sequence_count = int(packet_sequence_count, 2)
-
-      # Get data values from packet
-      data_string = self.convert_packet_data_to_string(packet_id, packet_data)
-
-      # Get current time in epoch format
-      current_time = int(time.mktime(time.localtime()))
-      
-      # Create the message
-      if apid == 10:
-        message = f"rtu_pfc,{packet_id},{packet_sequence_count},{current_time}"
-      elif apid == 20:
-        message = f"rtu_bfc,{packet_id},{packet_sequence_count},{current_time}"
-      elif apid == 30:
-        message = f"rtu_rotator,{[key for key, value in self.apid_to_type.items() if value == "rotator_calculations"][0]},{self.rotator.rotator_command_index}"
-      else:
-        print(f"Invalid apid: {apid}")
-        raise Exception("Invalid apid")
-      
-      if data_string != "":
-        message += f",{data_string}"
-        
-      message += "~"
-      
-      return (message, data_string, packet_id) 
-    
-    except Exception as e:
-      print(f"Error converting packet to message: {e}. Full packet: {packet}")
-      return None
-  
-  def __process_rotator_command(self, packet_id: int, data: str) -> None:
+  def __process_rotator_command(self, packet_id: int, packet_data) -> bool:
     try:
       # Set target PFC
-      if packet_id == 3000:
-        self.rotator.set_target("pfc")
-        
-      # Set target BFC
-      elif packet_id == 3001:
-        self.rotator.set_target("bfc")    
+      if packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_set_target_request"][0]:
+        target = binary_to_int(packet_data[:8])
+        if target == 0:
+          self.rotator.set_target("pfc")
+        elif target == 1:
+          self.rotator.set_target("bfc")
+        return True
             
       # Set rotator to auto tracking mode
-      elif packet_id == 3002:
+      elif packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_auto_tracking_request"][0]:
         self.rotator.set_control_mode("auto")
+        return True
         
       # Set rotator to auto rotator position mode
-      elif packet_id == 3003:
+      elif packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_auto_rotator_position_request"][0]:
         self.rotator.set_rotator_position_mode("auto")
-        
+        return True
+      
       # Set rotator to manual rotator position mode
-      elif packet_id == 3004:
-        latitude, longitude, altitude = data.split(",")
+      elif packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_manual_rotator_position_request"][0]:
+        latitude = binary_to_float(packet_data[:32])
+        longitude = binary_to_float(packet_data[32:64])
+        altitude = binary_to_float(packet_data[64:96])
         self.rotator.set_manual_rotator_position(latitude, longitude, altitude)
+        return True
       
       # Set rotator to manual angles mode
-      elif packet_id == 3005:
-        azimuth, elevation = data.split(",")
+      elif packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_manual_angles_request"][0]:
+        azimuth = binary_to_float(packet_data[:32])
+        elevation = binary_to_float(packet_data[32:64])
         self.rotator.set_manual_angles(azimuth, elevation)
+        return True
         
       # Set rotator to manual target coordinates mode
-      elif packet_id == 3006: 
-        latitude, longitude, altitude = data.split(",")
+      elif packet_id == [key for key, value in PACKETID_TO_TYPE.items() if value == "rotator_manual_target_coordinates_request"][0]: 
+        latitude = binary_to_float(packet_data[:32])
+        longitude = binary_to_float(packet_data[32:64])
+        altitude = binary_to_float(packet_data[64:96])
         self.rotator.set_manual_target_position(latitude, longitude, altitude)
-      
-    except Exception as e:
-      print(f"Error processing rotator command: {e}. Full command: {packet_id}, {data}")  
-  
-  def create_primary_header(self, apid: int, sequence_count: int, data_length: int) -> bytearray:
-    """
-    Creates the primary header of a CCSDS packet.
-    """
-    ## Packet version number - 3 bits total
-    PACKET_VERSION_NUMBER = b"000"
-    
-    ## Packet identification field - 13 bits total
-    # Packet type (0 is telemetry, 1 is telecommand)- 1 bit
-    # Secondary header flag (Always 0, as it will NOT be used) - 1 bit
-    # APID (Application Process Identifier) - 11 bits
-    PACKET_TYPE = b"0"
-    SECONDARY_HEADER_FLAG = b"0"
-    apid_binary = bin(apid)[2:].zfill(11).encode()
-    packet_identification_field = PACKET_TYPE + SECONDARY_HEADER_FLAG + apid_binary
-    
-    ## Packet Sequence Control - 16 bits total
-    # Sequence flags (Always 11, as we are sending a single undivided packet) - 2 bits
-    # Packet Sequence Count (Packet index)- 14 bits
-    PACKET_SEQUENCE_FLAG = b"11"
-    packet_sequence_count = bin(sequence_count)[2:].zfill(14).encode()
-    packet_sequence_control = PACKET_SEQUENCE_FLAG + packet_sequence_count
-    
-    ## Packet data length - 16 bits total
-    # 16-bit field contains a length count that equals one fewer than the length of the data field
-    packet_data_length = bin(data_length - 1)[2:].zfill(16).encode()
-    
-    # Create the primary header
-    primary_header = PACKET_VERSION_NUMBER + packet_identification_field + packet_sequence_control + packet_data_length
-    primary_header = bytearray(int(primary_header[i:i+8], 2) for i in range(0, len(primary_header), 8))
+        return True
 
-    return primary_header
+      return False
+      
+    except Exception as e:
+      print(f"Error processing rotator command: {e}")
+      return False  
   
-  def __update_values_from_message(self, message: str) -> None:
-    """
-    Converts a message string to a dictonary.
-    If the message is invalid, returns an empty dictonary.
-    """
+  def __update_pfc_telemetry(self, packet_data, epoch_seconds, epoch_subseconds) -> None:
     try:
-      # Create a dictonary with keys from the telemetry_message_structure and values from the message
-      message_split = message.split(",")
-      apid = int(message_split[1])
+      new_telemetry = {}
       
-      message_dict = {}
-      
+      # Convert packet data from binary to usable data values
+      start = 0
+      for type, value in TELEMETRY_MESSAGE_STRUCTURE["pfc"]:
+        if type == "float":
+          end = start + 32
+          new_telemetry[value] = binary_to_float(packet_data[start:end])
+          start = end
+        elif type == "int":
+          end = start + 32
+          new_telemetry[value] = binary_to_int(packet_data[start:end])
+          start = end
+        else:
+          raise Exception(f"Invalid data type: {type} and {value}")
+        
       # PFC essential telemetry
-      if apid == [key for key, value in self.apid_to_type.items() if value == "pfc_essential"][0]:
-        for key, value in zip(self.telemetry_message_structure["pfc"], message_split):
-          if value.isdigit():
-            message_dict[key] = int(value)
-          elif self.__isfloat(value):
-            message_dict[key] = float(value)
-          else:
-            message_dict[key] = value
+      old_pfc_telemetry_epoch_seconds = self.last_pfc_telemetry_epoch_seconds
+      old_pfc_telemetry_epoch_subseconds = self.last_pfc_telemetry_epoch_subseconds
+      self.last_pfc_telemetry_epoch_seconds = epoch_seconds
+      self.last_pfc_telemetry_epoch_subseconds = epoch_subseconds
+
+      # Calculate time delta from seconds and subseconds
+      time_delta = (self.last_pfc_telemetry_epoch_seconds - old_pfc_telemetry_epoch_seconds) + (self.last_pfc_telemetry_epoch_subseconds - old_pfc_telemetry_epoch_subseconds) / 65536
+
+      # Calculate extra telemetry if position is valid
+      if self.pfc_telemetry["gps_latitude"] != 0 and self.pfc_telemetry["gps_latitude"] != 0:
+        self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
         
-        old_pfc_telemetry_epoch = self.last_pfc_telemetry_epoch
-        self.last_pfc_telemetry_epoch = int(time.mktime(time.localtime()))
-        time_delta = self.last_pfc_telemetry_epoch - old_pfc_telemetry_epoch
-        
-        if self.pfc_telemetry["gps_latitude"] != None:
-          self.pfc_calculations = calculate_flight_computer_extra_telemetry(self.pfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["pfc"])
-          message = f"calculations,{[key for key, value in self.apid_to_type.items() if value == "pfc_calculations"][0]},{self.pfc_calculations_index},{self.pfc_calculations['gps_vertical_speed']},{self.pfc_calculations['baro_vertical_speed']},{self.pfc_calculations['horizontal_speed']},{self.pfc_calculations['gps_total_speed']},{self.pfc_calculations['ground_distance_to_rotator']},{self.pfc_calculations['straight_line_distance_to_rotator']}"
-    
-          converted = self.convert_message_to_ccsds(message)
-          if converted is None:
-            return
+      # Create a ccsds packet from the calculations
+      apid = [key for key, value in APID_TO_TYPE.items() if value == "pfc_calculations"][0]
+      message = ",".join([str(x) for x in self.pfc_calculations.values()]) 
+      ccsds = convert_message_to_ccsds(apid, self.pfc_calculations_index, message)
           
-          # Split the message into parts
-          ccsds, apid, sequence_count = converted
-          self.processed_packets.put(ccsds)
-          self.pfc_calculations_index += 1
+      if ccsds is None:
+        raise Exception("Invalid ccsds packet created")
           
-        self.pfc_telemetry = message_dict
-      
-      # BFC essential telemetry
-      elif apid == [key for key, value in self.apid_to_type.items() if value == "bfc_essential"][0]:
-        for key, value in zip(self.telemetry_message_structure["bfc"], message_split):
-          if value.isdigit():
-            message_dict[key] = int(value)
-          elif self.__isfloat(value):
-            message_dict[key] = float(value)
-          else:
-            message_dict[key] = value
-            
-        old_bfc_telemetry_epoch = self.last_bfc_telemetry_epoch
-        self.last_bfc_telemetry_epoch = int(time.mktime(time.localtime()))
-        time_delta = self.last_bfc_telemetry_epoch - old_bfc_telemetry_epoch
-        
-        if self.bfc_telemetry["gps_latitude"] != None:
-          self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, message_dict, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
-          message = f"calculations,{[key for key, value in self.apid_to_type.items() if value == "bfc_calculations"][0]},{self.bfc_calculations_index},{self.bfc_calculations['gps_vertical_speed']},{self.bfc_calculations['baro_vertical_speed']},{self.bfc_calculations['horizontal_speed']},{self.bfc_calculations['gps_total_speed']},{self.bfc_calculations['ground_distance_to_rotator']},{self.bfc_calculations['straight_line_distance_to_rotator']}"
-    
-          converted = self.convert_message_to_ccsds(message)
-          if converted is None:
-            return
-          
-          # Split the message into parts
-          ccsds, apid, sequence_count = converted
-          self.processed_packets.put(ccsds)
-          self.bfc_calculations_index += 1
-          
-        self.bfc_telemetry = message_dict
-      
-      # Rotator position telemetry
-      elif apid == [key for key, value in self.apid_to_type.items() if value == "rotator_position"][0]:
-        for key, value in zip(self.telemetry_message_structure["rotator"], message_split):
-          if value.isdigit():
-            message_dict[key] = int(value)
-          elif self.__isfloat(value):
-            message_dict[key] = float(value)
-          else:
-            message_dict[key] = value
-        self.rotator_telemetry = message_dict
+      self.processed_packets.put((False, "yamcs", ccsds))
+      self.pfc_calculations_index += 1
+      self.pfc_telemetry = new_telemetry
         
     except Exception as e:
-      print(f"Error converting message to dictonary: {e}. Full message: {message}")
+      print(f"Error updating PFC telemetry: {e}")
+      
+  def __update_bfc_telemetry(self, packet_data, epoch_seconds, epoch_subseconds) -> None:
+    try:
+      new_telemetry = {}
+      
+      # Convert packet data from binary to usable data types
+      start = 0
+      for type, value in TELEMETRY_MESSAGE_STRUCTURE["bfc"]:
+        if type == "float":
+          end = start + 32
+          new_telemetry[value] = binary_to_float(packet_data[start:end])
+          start = end
+        elif type == "int":
+          end = start + 32
+          new_telemetry[value] = binary_to_int(packet_data[start:end])
+          start = end
+        else:
+          raise Exception(f"Invalid data type: {type} and {value}")
+        
+      # BFC essential telemetry
+      old_bfc_telemetry_epoch_seconds = self.last_bfc_telemetry_epoch_seconds
+      old_bfc_telemetry_epoch_subseconds = self.last_bfc_telemetry_epoch_subseconds
+      self.last_bfc_telemetry_epoch_seconds = epoch_seconds
+      self.last_bfc_telemetry_epoch_subseconds = epoch_subseconds
+      
+      # Calculate time delta from seconds and subseconds
+      time_delta = (self.last_bfc_telemetry_epoch_seconds - old_bfc_telemetry_epoch_seconds) + (self.last_bfc_telemetry_epoch_subseconds - old_bfc_telemetry_epoch_subseconds) / 65536
+
+      # Calculate extra telemetry if position is valid
+      if self.bfc_telemetry["gps_latitude"] != 0 and self.bfc_telemetry["gps_latitude"] != 0:
+        self.bfc_calculations = calculate_flight_computer_extra_telemetry(self.bfc_telemetry, new_telemetry, self.rotator_telemetry, time_delta, CALCULATION_MESSAGE_STRUCTURE["bfc"])
+        
+        # Create a ccsds packet from the calculations
+        apid = [key for key, value in APID_TO_TYPE.items() if value == "bfc_calculations"][0]
+        message = ",".join([str(x) for x in self.bfc_calculations.values()]) 
+        ccsds = convert_message_to_ccsds(apid, self.bfc_calculations_index, message)
+        
+        if ccsds is None:
+          raise Exception("Invalid ccsds packet created")
+        
+        self.processed_packets.put((False, "yamcs", ccsds))
+        self.bfc_calculations_index += 1
+        self.bfc_telemetry = new_telemetry
+        
+    except Exception as e:
+      print(f"Error updating BFC telemetry: {e}")
+      
+
+  def __update_rotator_telemetry(self, packet_data) -> None:
+    try:
+      new_telemetry = {}
+      
+      # Convert packet data from binary to usable data types
+      start = 0
+      for type, value in TELEMETRY_MESSAGE_STRUCTURE["rotator"]:
+        if type == "float":
+          end = start + 32
+          new_telemetry[value] = binary_to_float(packet_data[start:end])
+          start = end
+        elif type == "int":
+          end = start + 32
+          new_telemetry[value] = binary_to_int(packet_data[start:end])
+          start = end
+        else:
+          raise Exception(f"Invalid data type: {type} and {value}")
+        
+      # Create a ccsds packet from the rotator position
+      apid = [key for key, value in APID_TO_TYPE.items() if value == "rotator_position"][0]
+      message = ",".join([str(x) for x in new_telemetry.values()])
+      ccsds = convert_message_to_ccsds(apid, self.rotator_calculations_index, message)
+      
+      if ccsds is None:
+        raise Exception("Invalid ccsds packet created")
+      
+      self.processed_packets.put((False, "yamcs", ccsds))
+      self.rotator_calculations_index += 1        
+      self.rotator_telemetry = new_telemetry
+      
+    except Exception as e:
+      print(f"Error updating rotator telemetry: {e}")
     

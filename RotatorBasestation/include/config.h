@@ -7,9 +7,11 @@
 #include <WiFiUdp.h>
 #include <TinyGPS++.h>
 #include <AccelStepper.h>
+#include <LCD-I2C.h>
 
-// Our wrappers
+// Our libraries
 #include <RadioLib_wrapper.h>
+#include <Ccsds_packets.h>
 
 // Used radio module
 #define radio_module SX1262
@@ -119,9 +121,15 @@ public:
       10045          // This ports should not change
   };
 
+  // LCD
+  const int LCD_ADDRESS = 0x27;
+  const int LCD_COLUMNS = 16;
+  const int LCD_ROWS = 4;
+  const int LCD_UPDATE_INTERVAL = 1000;
+
+  // Telemetry
   const int GPS_SEND_INTERVAL = 60000;
   const int ROTATOR_TELEMETRY_APID = 50;
-  const String ROTATOR_TELEMETRY_MESSAGE_HEADER_APID = "rtu_rotator," + String(ROTATOR_TELEMETRY_APID);
 
   // SPI0
   const int SPI0_RX = 11;

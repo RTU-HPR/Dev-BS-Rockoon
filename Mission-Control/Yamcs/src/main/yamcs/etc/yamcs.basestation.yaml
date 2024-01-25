@@ -27,7 +27,16 @@ dataLinks:
     class: org.yamcs.tctm.UdpTmDataLink
     stream: tm_realtime
     port: 10015
-    packetPreprocessorClassName: com.example.basestation.MyPacketPreprocessor
+    packetPreprocessorClassName: org.yamcs.tctm.cfs.CfsPacketPreprocessor
+    packetPreprocessorArgs:
+      errorDetection:
+        type: CRC-16-CCIIT
+      useLocalGenerationTime: false
+      byteOrder: BIG_ENDIAN
+      timeEncoding:
+        epoch: CUSTOM
+        epochUTC: "1970-01-01T00:00:00Z"
+        timeIncludesLeapSeconds: false
 
   - name: udp-out
     class: org.yamcs.tctm.UdpTcDataLink
